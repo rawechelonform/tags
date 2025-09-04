@@ -58,7 +58,7 @@
     <div class="spacer-title"></div>
 
     <!-- Hidden iframe so the page doesn't navigate away on submit -->
-    <iframe name="upload_iframe" style="display:none" aria-hidden="true"></iframe>
+    <iframe name="upload_iframe" style="width:100%;height:140px;border:1px dashed #0f0" aria-hidden="true"></iframe>
 
     <!-- Native POST to Apps Script, but target the hidden iframe -->
     <form id="tags_form"
@@ -151,6 +151,8 @@
     var statusEl   = document.getElementById('status');
     var fileInput  = document.getElementById('sticker');
     var fileStatus = document.getElementById('fileStatus');
+    var uploadTimer = null;
+
 
     function setStatus(msg){ statusEl.textContent = msg; }
     function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB']; var i=0; var v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
@@ -161,50 +163,72 @@
     });
 
     form.addEventListener('submit', function(e){
-      var f = fileInput.files && fileInput.files[0];
-      if (!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
-      if (!['image/png','image/jpeg','image/webp'].includes(f.type)){ e.preventDefault(); setStatus('png/jpeg/webp only'); return; }
-      if (f.size > 10*1024*1024){ e.preventDefault(); setStatus('file size limit: 10mb.'); return; }
-      var hp = document.querySelector('input[name="website"]'); if (hp && hp.value){ e.preventDefault(); setStatus('spam blocked.'); return; }
-      // normalize text before upload
-      ['hid-title','hid-city','hid-country'].forEach(function(id){
-        var el = document.getElementById(id);
-        if (el) el.value = (el.value||'').toLowerCase().slice(0,30);
-      });
-      btn.disabled = true;
-      setStatus('uploading...');
-      // browser posts natively into the hidden iframe
-    });
+  var f = fileInput.files && fileInput.files[0];
+  if (!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
+  if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
+    e.preventDefault(); setStatus('png/jpeg/webp only'); return;
+  }
+  if (f.size > 10*1024*1024){
+    e.preventDefault(); setStatus('file size limit: 10mb.'); return;
+  }
+  var hp = document.querySelector('input[name="website"]');
+  if (hp && hp.value){
+    e.preventDefault(); setStatus('spam blocked.'); return;
+  }
+
+  // normalize text before upload
+  ['hid-title','hid-city','hid-country'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.value = (el.value||'').toLowerCase().slice(0,30);
+  });
+
+  // disable button + show uploading
+  btn.disabled = true;
+  setStatus('uploading...');
+
+  // start 20s timeout fail-safe
+  clearTimeout(uploadTimer);
+  uploadTimer = setTimeout(function(){
+    btn.disabled = false;
+    setStatus('upload failed (no response).');
+    console.warn('[tags] no postMessage within 20s');
+  }, 20000);
+});
 
     // ------- receive result from Apps Script via postMessage -------
     const banner = document.getElementById('banner');
     const ALLOWED = ['https://script.google.com','https://script.googleusercontent.com'];
     window.addEventListener('message', function(e){
-      if (!ALLOWED.includes(e.origin)) return;
-      var d = e.data || {};
-      if (d.source !== 'tags-webapp') return;
+  if (!ALLOWED.includes(e.origin)) return;
+  var d = e.data || {};
+  if (d.source !== 'tags-webapp') return;
 
-      // re-enable button
-      btn.disabled = false;
-      // show success or error (stay on page)
-      banner.classList.remove('error');
-      if (d.ok) {
-        banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
-        form.reset();
-        if (fileStatus) fileStatus.textContent = '';
-        hideCursor();
-        // reset typed placeholders
-        ['title','city','country'].forEach(function(f){
-          var line = document.querySelector('.line[data-field="' + f + '"]');
-          var typed = line && line.querySelector('.typed');
-          var ph = line && line.getAttribute('data-ph');
-          if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
-        });
-      } else {
-        banner.textContent = d.error ? String(d.error).toLowerCase() : 'upload failed.';
-        banner.classList.add('error');
-      }
+  // stop the fail-safe timer
+  clearTimeout(uploadTimer);
+
+  // re-enable button
+  btn.disabled = false;
+
+  // show success or error (stay on page)
+  banner.classList.remove('error');
+  if (d.ok) {
+    banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
+    form.reset();
+    if (fileStatus) fileStatus.textContent = '';
+    hideCursor();
+    // reset typed placeholders
+    ['title','city','country'].forEach(function(f){
+      var line = document.querySelector('.line[data-field="' + f + '"]');
+      var typed = line && line.querySelector('.typed');
+      var ph = line && line.getAttribute('data-ph');
+      if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
     });
+  } else {
+    banner.textContent = d.error ? String(d.error).toLowerCase() : 'upload failed.';
+    banner.classList.add('error');
+  }
+});
+
   </script>
 </body>
 </html>
