@@ -1,59 +1,24 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>GAS Upload Smoke Test</title>
+<title>Grab Final GAS URL</title>
 <style>
-  body { font: 16px/1.5 system-ui, sans-serif; max-width: 800px; margin: 24px auto; }
-  .row { margin: 12px 0; }
-  pre { background: #111; color: #0f0; padding: 12px; min-height: 140px; white-space: pre-wrap; }
-  iframe { width: 100%; height: 220px; border: 1px solid #ccc; }
-  code { background:#f4f4f4; padding:2px 4px; border-radius:4px; }
+  body { font: 16px/1.4 system-ui, sans-serif; max-width: 720px; margin: 24px auto; }
+  code { background:#f3f3f3; padding:2px 5px; border-radius:4px; }
 </style>
 
-<h1>GAS Upload Smoke Test</h1>
-<p>This page posts a file directly to your Apps Script Web App and shows the response.</p>
-
-<div class="row">
-  <strong>Apps Script URL:</strong><br>
-  <code>https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec</code>
-</div>
+<h1>Grab Final GAS URL</h1>
+<p>1) Choose a small image and click <b>Open final URL</b>.<br>
+2) The page will navigate. <b>Copy the entire URL from the browser address bar</b> — it will start with
+<code>https://script.googleusercontent.com/macros/echo?user_content_key=...&lib=...</code>.<br>
+3) Hit Back to return here.</p>
 
 <form
   action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
   method="POST"
   enctype="multipart/form-data"
-  target="_blank">
-  <div class="row">
-    <label>Choose file: <input type="file" name="sticker" accept=".png,.jpg,.jpeg,.webp" required></label>
-  </div>
-  <div class="row">
-    <input type="text" name="title" placeholder="title">
-    <input type="text" name="city" placeholder="city">
-    <input type="text" name="country" placeholder="country">
-  </div>
-  <div class="row">
-    <button type="submit">Upload</button>
-  </div>
+  target="_self">
+  <p><input type="file" name="sticker" accept=".png,.jpg,.jpeg,.webp" required></p>
+  <p><button type="submit">Open final URL</button></p>
 </form>
 
-<h3>Result (postMessage)</h3>
-<pre id="out">(ready — pick a file, then Upload)</pre>
-
-<h3>Raw iframe response</h3>
-<iframe name="result_iframe" id="result_iframe"></iframe>
-
-<script>
-  // Show postMessage results from the Apps Script response (sent from the iframe)
-  window.addEventListener('message', function (e) {
-    // Apps Script replies from script.google.com or *.googleusercontent.com
-    var okOrigin = /^https:\/\/script\.google\.com$/.test(e.origin) ||
-                   /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
-    if (!okOrigin) return;
-
-    var out = document.getElementById('out');
-    try {
-      out.textContent = JSON.stringify(e.data, null, 2);
-    } catch {
-      out.textContent = String(e.data);
-    }
-  });
-</script>
+<p>Once you have the long URL, paste it into the <code>action="…"</code> of your real form(s) and the normal smoke test.</p>
