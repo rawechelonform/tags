@@ -24,13 +24,18 @@
     .wrap{
       width:var(--wrap-w); max-width:var(--max-w);
       margin:calc(var(--stage-offset)) auto 32px;
-      padding:0 calc(12px + var(--left-offset));
-      position:relative;
+      padding:0 calc(12px + var(--left-offset)); /* symmetric left/right */
     }
+    /* Header row: left title, right back link — perfectly aligned by the same padding */
+    .hdr{ display:flex; align-items:baseline; justify-content:space-between; }
     h1{ margin:0; font-weight:700; font-size:var(--fs); line-height:calc(var(--lh)*1em); }
+    .back-link{ color:var(--crt); text-decoration:none; font-weight:700; }
+    .back-link .label{ text-decoration:none; }
+    .back-link .bracket{ text-decoration:none; }
+    .back-link:hover .label{ text-decoration:underline; }
     .spacer-title{ height: var(--sep-title); }
 
-    .row-spacer{ height: var(--between-q); }
+    .row-spacer{ height: var(--between-q); } /* extra space above each question */
 
     .q{ margin-top: var(--between-q); }
     .line{ display:flex; align-items:baseline; gap:var(--caret-gap); margin-top:var(--row-gap); }
@@ -39,9 +44,13 @@
     .typed{ min-height:calc(var(--lh)*1em); line-height:calc(var(--lh)*1em); white-space:pre-wrap; color:var(--crt); }
     .typed.ph{ color:var(--crt-dim); }
 
-    .cursor-block{ display:inline-block; width:1.1ch; height:1em; background:var(--crt); color:#000;
-                   transform: translateY(calc((var(--lh) - 1) * 0.5em));
-                   animation: cursorBlink .8s steps(1,end) infinite; vertical-align:baseline; }
+    /* Inline block-cursor that sits over the character at the caret */
+    .cursor-block{
+      display:inline-block; width:1.1ch; height:1em;
+      background:var(--crt); color:#000;
+      transform: translateY(calc((var(--lh) - 1) * 0.5em));
+      animation: cursorBlink .8s steps(1,end) infinite; vertical-align:baseline;
+    }
     @keyframes cursorBlink{0%,45%{background:var(--crt);color:#000}50%,100%{background:transparent;color:transparent}}
 
     .btn{ display:inline-block; width:var(--btn-w); padding:10px 14px; background:var(--bg); color:var(--crt);
@@ -57,27 +66,22 @@
 
     .hid-input{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; border:0; outline:none; background:transparent; color:transparent; caret-color:transparent; text-transform:lowercase; }
     .hp{ position:absolute; left:-9999px; top:-9999px; }
-
-    /* top-right <BACK> link aligned with left inset */
-    .back-link{
-      position:absolute; right: calc(12px + var(--left-offset)); top:0;
-      color:var(--crt); text-decoration:none; font-weight:700;
-    }
-    .back-link .label{ text-decoration:none; }
-    .back-link .bracket{ text-decoration:none; }
-    .back-link:hover .label{ text-decoration:underline; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <a class="back-link" href="https://rawechelonform.neocities.org/girlsroom">
-      <span class="bracket">&lt;</span><span class="label">BACK</span><span class="bracket">&gt;</span>
-    </a>
-    <h1>TAG THE WALL</h1>
+    <div class="hdr">
+      <h1>TAG THE WALL</h1>
+      <a class="back-link" href="https://rawechelonform.neocities.org/girlsroom">
+        <span class="bracket">&lt;</span><span class="label">BACK</span><span class="bracket">&gt;</span>
+      </a>
+    </div>
     <div class="spacer-title"></div>
 
+    <!-- Hidden iframe target -->
     <iframe name="upload_iframe" style="display:none"></iframe>
 
+    <!-- Native POST to Apps Script -->
     <form id="tags_form"
       action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
       method="POST" enctype="multipart/form-data" target="upload_iframe" novalidate>
@@ -92,10 +96,12 @@
         <span id="fileStatus" class="file-status"></span>
       </div>
 
+      <!-- base64 fallback fields -->
       <input type="hidden" name="sticker_b64" id="sticker_b64">
       <input type="hidden" name="sticker_name" id="sticker_name">
       <input type="hidden" name="sticker_type" id="sticker_type">
 
+      <!-- PLACE OF TAG -->
       <div class="row-spacer"></div>
       <div class="q">PLACE OF TAG</div>
       <div class="line" data-field="title" data-ph="'ZËRGË COFFEESHOP', 'BERLIN WALL', 'STRIPPER POLE' (optional)">
@@ -104,6 +110,7 @@
         <input id="hid-title" class="hid-input" type="text" name="title" maxlength="30" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
 
+      <!-- CITY -->
       <div class="row-spacer"></div>
       <div class="q">CITY</div>
       <div class="line" data-field="city" data-ph="NEW YORK CITY">
@@ -112,6 +119,7 @@
         <input id="hid-city" class="hid-input" type="text" name="city" maxlength="30" autocomplete="address-level2" autocapitalize="off" spellcheck="false">
       </div>
 
+      <!-- COUNTRY -->
       <div class="row-spacer"></div>
       <div class="q">COUNTRY</div>
       <div class="line" data-field="country" data-ph="USA">
@@ -120,8 +128,10 @@
         <input id="hid-country" class="hid-input" type="text" name="country" maxlength="30" autocomplete="country-name" autocapitalize="off" spellcheck="false">
       </div>
 
+      <!-- Honeypot -->
       <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" />
 
+      <!-- GO + inline status -->
       <div class="row-spacer"></div>
       <div class="line no-caret">
         <span class="caret">></span>
@@ -129,38 +139,70 @@
         <span id="status" class="status"></span>
       </div>
     </form>
-
-    <span id="cursor" class="cursor-block" aria-hidden="true" style="display:none;"></span>
   </div>
 
   <script>
-    var cursorEl = document.getElementById('cursor');
-    function attachCursorTo(typedEl){ if (!typedEl) return; typedEl.appendChild(cursorEl); cursorEl.style.display=''; }
-    function hideCursor(){ cursorEl.style.display='none'; document.body.appendChild(cursorEl); }
-
+    // ===== caret-following renderer for typed fields =====
+    function escapeHTML(s){
+      return String(s).replace(/[&<>"']/g, c => (
+        c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;'
+      ));
+    }
     function bindTermField(field){
       var line  = document.querySelector('.line[data-field="' + field + '"]');
       if (!line) return;
       var typed = line.querySelector('.typed');
       var input = document.getElementById('hid-' + field);
       var ph    = line.getAttribute('data-ph') || '';
+
       line.addEventListener('click', function(){ input.focus(); });
-      function render(showPh){
+
+      function render(showPh, withCursor){
         if (showPh === undefined) showPh = true;
-        var v = input.value || '';
-        if (!v && showPh){ typed.textContent = ph; typed.classList.add('ph'); }
-        else { typed.textContent = v.toUpperCase(); typed.classList.remove('ph'); }
+        var raw = (input.value || '').toLowerCase().slice(0,30);
+        var v   = raw.toUpperCase();
+
+        if (!raw && showPh){
+          typed.textContent = ph;
+          typed.classList.add('ph');
+          return;
+        }
+        typed.classList.remove('ph');
+
+        if (withCursor && document.activeElement === input){
+          var idx = input.selectionStart != null ? input.selectionStart : v.length;
+          // Clamp idx
+          if (idx < 0) idx = 0;
+          if (idx > v.length) idx = v.length;
+
+          var before = escapeHTML(v.slice(0, idx));
+          var atChar = v.slice(idx, idx+1);
+          var middle = '<span class="cursor-block">' + (atChar ? escapeHTML(atChar) : '&nbsp;') + '</span>';
+          var after  = escapeHTML(v.slice(idx + (atChar ? 1 : 0)));
+          typed.innerHTML = before + middle + after;
+        } else {
+          typed.textContent = v;
+        }
       }
-      input.addEventListener('focus', function(){ render(false); attachCursorTo(typed); });
+
+      // keep model in lowercase, render uppercase
       input.addEventListener('input', function(){
         input.value = (input.value || '').toLowerCase().slice(0,30);
-        render(false); attachCursorTo(typed);
+        render(false, true);
       });
-      input.addEventListener('blur', function(){ hideCursor(); if (!input.value) render(true); });
-      render(true);
+      input.addEventListener('focus', function(){ render(false, true); });
+      input.addEventListener('blur',  function(){ render(true,  false); });
+      input.addEventListener('keyup', function(){ render(false, true); });
+      input.addEventListener('click', function(){ render(false, true); });
+      document.addEventListener('selectionchange', function(){
+        if (document.activeElement === input) render(false, true);
+      });
+
+      render(true, false);
     }
     ['title','city','country'].forEach(bindTermField);
 
+    // ===== upload logic (unchanged behavior, includes base64 fallback + fail-safe) =====
     var form       = document.getElementById('tags_form');
     var btn        = document.getElementById('submitBtn');
     var statusEl   = document.getElementById('status');
@@ -177,6 +219,7 @@
     function setStatus(msg){ statusEl.textContent = msg; }
     function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB']; var i=0; var v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
 
+    // immediate size check
     fileInput.addEventListener('change', function(){
       var f = fileInput.files && fileInput.files[0];
       b64El.value = ''; nameEl.value = ''; typeEl.value = '';
@@ -210,7 +253,6 @@
       var hp = document.querySelector('input[name="website"]'); if (hp && hp.value){
         e.preventDefault(); setStatus('spam blocked.'); return; }
 
-      // prepare base64 once, then submit
       if (!b64El.value && !reading) {
         e.preventDefault();
         reading = true;
@@ -225,7 +267,6 @@
           btn.disabled = false; setStatus('uploading...');
           clearTimeout(uploadTimer);
           uploadTimer = setTimeout(function(){
-            // last-resort success (file likely saved; message missed)
             setStatus('tag submitted. it may take a few days to see tag added to the wall.');
             btn.disabled = false;
           }, 20000);
@@ -243,7 +284,7 @@
       }
     });
 
-    // Receive result from Apps Script via postMessage
+    // postMessage from Apps Script
     window.addEventListener('message', function(e){
       var okOrigin =
         /^https:\/\/script\.google\.com$/.test(e.origin) ||
@@ -260,6 +301,7 @@
         setStatus('tag submitted. it may take a few days to see tag added to the wall.');
         form.reset();
         fileStatus.textContent = '';
+        // reset typed placeholders
         ['title','city','country'].forEach(function(fld){
           var line = document.querySelector('.line[data-field="' + fld + '"]');
           var typed = line && line.querySelector('.typed');
