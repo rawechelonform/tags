@@ -61,9 +61,9 @@
     <!-- Hidden iframe target -->
     <iframe name="upload_iframe" style="display:none"></iframe>
 
-    <!-- Native POST to Apps Script, targets hidden iframe -->
+    <!-- Native POST to Apps Script -->
     <form id="tags_form"
-      action="PASTE_YOUR_EXEC_URL_HERE"
+      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
       method="POST"
       enctype="multipart/form-data"
       target="upload_iframe"
@@ -80,10 +80,10 @@
 
       <!-- PLACE OF TAG -->
       <div class="q">PLACE OF TAG</div>
-      <div class="line" data-field="title" data-ph="'ZËRGË COFFEESHOP', 'BERLIN WALL', 'STRIPPER POLE' (LEAVE BLANK IF UNKNOWN)">
+      <div class="line" data-field="title" data-ph="'ZËRGË COFFEESHOP', 'BERLIN WALL', 'STRIPPER POLE'">
         <span class="caret">></span>
         <div class="typed" id="typed-title"></div>
-        <input id="hid-title" class="hid-input" type="text" name="title" maxlength="30" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <input id="hid-title" class="hid-input" type="text" name="title" maxlength="30">
       </div>
 
       <!-- CITY -->
@@ -91,7 +91,7 @@
       <div class="line" data-field="city" data-ph="NEW YORK CITY">
         <span class="caret">></span>
         <div class="typed" id="typed-city"></div>
-        <input id="hid-city" class="hid-input" type="text" name="city" maxlength="30" autocomplete="address-level2" autocapitalize="off" spellcheck="false">
+        <input id="hid-city" class="hid-input" type="text" name="city" maxlength="30">
       </div>
 
       <!-- COUNTRY -->
@@ -99,7 +99,7 @@
       <div class="line" data-field="country" data-ph="USA">
         <span class="caret">></span>
         <div class="typed" id="typed-country"></div>
-        <input id="hid-country" class="hid-input" type="text" name="country" maxlength="30" autocomplete="country-name" autocapitalize="off" spellcheck="false">
+        <input id="hid-country" class="hid-input" type="text" name="country" maxlength="30">
       </div>
 
       <!-- Honeypot -->
@@ -113,126 +113,96 @@
       </div>
     </form>
 
-    <!-- one global cursor (hidden until focus/typing) -->
     <span id="cursor" class="cursor-block" aria-hidden="true" style="display:none;"></span>
   </div>
 
   <script>
-    // ------- single moving block-cursor -------
-    var cursorEl = document.getElementById('cursor');
+    var cursorEl = document.getElementById('cursor')
     function attachCursorTo(typedEl){ if (!typedEl) return; typedEl.appendChild(cursorEl); cursorEl.style.display=''; }
     function hideCursor(){ cursorEl.style.display='none'; document.body.appendChild(cursorEl); }
 
-    // ------- bind "terminal" fields -------
     function bindTermField(field){
-      var line  = document.querySelector('.line[data-field="' + field + '"]');
-      if (!line) return;
-      var typed = line.querySelector('.typed');
-      var input = document.getElementById('hid-' + field);
-      var ph    = line.getAttribute('data-ph') || '';
-
-      line.addEventListener('click', function(){ input.focus(); });
-
+      var line  = document.querySelector('.line[data-field="' + field + '"]')
+      var typed = line.querySelector('.typed')
+      var input = document.getElementById('hid-' + field)
+      var ph    = line.getAttribute('data-ph') || ''
+      line.addEventListener('click', function(){ input.focus() })
       function render(showPh){
-        if (showPh === undefined) showPh = true;
-        var v = input.value || '';
-        if (!v && showPh){ typed.textContent = ph; typed.classList.add('ph'); }
-        else { typed.textContent = v.toUpperCase(); typed.classList.remove('ph'); }
+        var v = input.value || ''
+        if (!v && showPh){ typed.textContent = ph; typed.classList.add('ph') }
+        else { typed.textContent = v.toUpperCase(); typed.classList.remove('ph') }
       }
-      input.addEventListener('focus', function(){ render(false); attachCursorTo(typed); });
+      input.addEventListener('focus', function(){ render(false); attachCursorTo(typed) })
       input.addEventListener('input', function(){
-        input.value = (input.value || '').toLowerCase().slice(0,30);
-        render(false); attachCursorTo(typed);
-      });
-      input.addEventListener('blur', function(){ hideCursor(); if (!input.value) render(true); });
-      render(true);
+        input.value = (input.value || '').toLowerCase().slice(0,30)
+        render(false); attachCursorTo(typed)
+      })
+      input.addEventListener('blur', function(){ hideCursor(); if (!input.value) render(true) })
+      render(true)
     }
-    ['title','city','country'].forEach(bindTermField);
+    ['title','city','country'].forEach(bindTermField)
 
-    // ------- file UI + client validation (no fetch here) -------
-    var form       = document.getElementById('tags_form');
-    var btn        = document.getElementById('submitBtn');
-    var statusEl   = document.getElementById('status');
-    var banner     = document.getElementById('banner');
-    var fileInput  = document.getElementById('sticker');
-    var fileStatus = document.getElementById('fileStatus');
-    var uploadTimer = null;
+    var form       = document.getElementById('tags_form')
+    var btn        = document.getElementById('submitBtn')
+    var statusEl   = document.getElementById('status')
+    var banner     = document.getElementById('banner')
+    var fileInput  = document.getElementById('sticker')
+    var fileStatus = document.getElementById('fileStatus')
+    var uploadTimer = null
 
-    function setStatus(msg){ statusEl.textContent = msg; }
-    function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB']; var i=0; var v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
+    function setStatus(msg){ statusEl.textContent = msg }
+    function prettyBytes(n){ if(!n)return''; var u=['B','KB','MB']; var i=0; while(n>=1024&&i<u.length-1){n/=1024;i++} return n.toFixed(1)+' '+u[i] }
 
     fileInput.addEventListener('change', function(){
-      var f = fileInput.files && fileInput.files[0];
-      fileStatus.textContent = f ? ('selected: ' + f.name + ' (' + prettyBytes(f.size) + ')') : '';
-    });
+      var f = fileInput.files && fileInput.files[0]
+      fileStatus.textContent = f ? ('selected: ' + f.name + ' (' + prettyBytes(f.size) + ')') : ''
+    })
 
-    // Only preventDefault on validation failures; otherwise let native submit go to the iframe
     form.addEventListener('submit', function(e){
-      var f = fileInput.files && fileInput.files[0];
-      if (!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
+      var f = fileInput.files && fileInput.files[0]
+      if (!f){ e.preventDefault(); setStatus('no image uploaded.'); return }
       if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
-        e.preventDefault(); setStatus('png/jpeg/webp only'); return; }
+        e.preventDefault(); setStatus('png/jpeg/webp only'); return }
       if (f.size > 10*1024*1024){
-        e.preventDefault(); setStatus('file size limit: 10mb.'); return; }
-      var hp = document.querySelector('input[name="website"]');
-      if (hp && hp.value){
-        e.preventDefault(); setStatus('spam blocked.'); return; }
+        e.preventDefault(); setStatus('file size limit: 10mb.'); return }
+      var hp = document.querySelector('input[name="website"]')
+      if (hp && hp.value){ e.preventDefault(); setStatus('spam blocked.'); return }
 
-      // normalize text before upload
-      ['hid-title','hid-city','hid-country'].forEach(function(id){
-        var el = document.getElementById(id);
-        if (el) el.value = (el.value||'').toLowerCase().slice(0,30);
-      });
-
-      // disable button + show uploading; allow native submit to proceed
-      btn.disabled = true;
-      setStatus('uploading...');
-
-      // 20s timeout fail-safe in case no message comes back
-      clearTimeout(uploadTimer);
+      btn.disabled = true
+      setStatus('uploading...')
+      clearTimeout(uploadTimer)
       uploadTimer = setTimeout(function(){
-        btn.disabled = false;
-        setStatus('upload failed (no response).');
-        console.warn('[tags] no postMessage within 20s');
-      }, 20000);
-    });
+        btn.disabled = false
+        setStatus('upload failed (no response).')
+      }, 20000)
+    })
 
-    // ------- receive result from Apps Script via postMessage -------
     window.addEventListener('message', function(e){
-      // Log actual origin for sanity
-      console.log('[tags] message from origin:', e.origin, 'data:', e.data);
-
-      // Allow script.google.com and any *.googleusercontent.com
-      var okOrigin =
-        /^https:\/\/script\.google\.com$/.test(e.origin) ||
-        /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
-
-      if (!okOrigin) return;
-
-      var d = e.data || {};
-      if (d.source !== 'tags-webapp') return;
-
-      clearTimeout(uploadTimer);
-      btn.disabled = false;
-
-      banner.classList.remove('error');
+      console.log('[tags] message from origin:', e.origin, 'data:', e.data)
+      var okOrigin = /^https:\/\/script\.google\.com$/.test(e.origin) || /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin)
+      if (!okOrigin) return
+      var d = e.data || {}
+      if (d.source !== 'tags-webapp') return
+      clearTimeout(uploadTimer)
+      btn.disabled = false
+      banner.classList.remove('error')
       if (d.ok) {
-        banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
-        form.reset();
-        if (fileStatus) fileStatus.textContent = '';
-        hideCursor();
-        ['title','city','country'].forEach(function(f){
-          var line = document.querySelector('.line[data-field="' + f + '"]');
-          var typed = line && line.querySelector('.typed');
-          var ph = line && line.getAttribute('data-ph');
-          if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
-        });
-        setStatus('');
+        banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.'
+        form.reset()
+        fileStatus.textContent = ''
+        hideCursor()
+        ;['title','city','country'].forEach(function(f){
+          var line = document.querySelector('.line[data-field="' + f + '"]')
+          var typed = line && line.querySelector('.typed')
+          var ph = line && line.getAttribute('data-ph')
+          if (typed && ph){ typed.textContent = ph; typed.classList.add('ph') }
+        })
+        setStatus('')
       } else {
-        banner.textContent = d.error ? String(d.error).toLowerCase() : 'upload failed.';
-        banner.classList.add('error');
+        banner.textContent = d.error ? String(d.error).toLowerCase() : 'upload failed.'
+        banner.classList.add('error')
       }
-    });
+    })
   </script>
 </body>
 </html>
