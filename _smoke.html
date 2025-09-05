@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>GAS Upload Smoke Test</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 800px; margin: 24px auto; }
+  .row { margin: 12px 0; }
+  pre { background: #111; color: #0f0; padding: 12px; min-height: 120px; white-space: pre-wrap; }
+  iframe { width: 100%; height: 220px; border: 1px solid #ccc; }
+  code { background:#f4f4f4; padding:2px 4px; border-radius:4px; }
+</style>
+
+<h1>GAS Upload Smoke Test</h1>
+<p>This page posts a file directly to your Apps Script Web App and shows the response.</p>
+
+<div class="row">
+  <strong>1) Apps Script URL:</strong><br>
+  <code>https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec</code>
+</div>
+
+<form class="row"
+      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
+      method="POST" enctype="multipart/form-data" target="result_iframe">
+  <div class="row">
+    <label>Choose file: <input type="file" name="sticker" accept=".png,.jpg,.jpeg,.webp" required></label>
+  </div>
+  <div class="row">
+    <input type="text" name="title" placeholder="title">
+    <input type="text" name="city" placeholder="city">
+    <input type="text" name="country" placeholder="country">
+  </div>
+  <div class="row">
+    <button type="submit">Upload</button>
+  </div>
+</form>
+
+<h3>Result (postMessage)</h3>
+<pre id="out">(waiting... choose a file and click Upload)</pre>
+
+<h3>Raw iframe response</h3>
+<iframe name="result_iframe" id="result_iframe"></iframe>
+
+<script>
+  // Show postMessage results from the Apps Script response
+  window.addEventListener('message', function (e) {
+    // GAS replies from script.google.com or *.googleusercontent.com
+    var okOrigin = /^https:\/\/script\.google\.com$/.test(e.origin) ||
+                   /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
+    if (!okOrigin) return;
+
+    var out = document.getElementById(
