@@ -5,6 +5,7 @@
   <title>TAG THE WALL</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:,">
   <style>
     :root{
       --bg:#000; --crt:#00ff00; --crt-dim:rgba(0,255,0,.55); --crt-soft: rgba(0,255,0,.18);
@@ -57,12 +58,16 @@
     <h1>TAG THE WALL <span id="banner" class="banner"></span></h1>
     <div class="spacer-title"></div>
 
-    <!-- no iframe needed when using fetch -->
+    <!-- Hidden iframe target (no navigation; receives server HTML that postMessages back) -->
+    <iframe name="upload_iframe" style="display:none"></iframe>
 
-    <!-- Native form; JS will intercept and send FormData via fetch -->
+    <!-- Native POST to Apps Script, targeted at the hidden iframe -->
     <form id="tags_form"
-      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
-      method="POST" enctype="multipart/form-data" novalidate>
+      action="PASTE_YOUR_/exec_URL_HERE"
+      method="POST"
+      enctype="multipart/form-data"
+      target="upload_iframe"
+      novalidate>
 
       <!-- UPLOAD -->
       <div class="q">UPLOAD IMAGE</div>
@@ -151,6 +156,7 @@
     var banner     = document.getElementById('banner');
     var fileInput  = document.getElementById('sticker');
     var fileStatus = document.getElementById('fileStatus');
+    var uploadTimer = null;
 
     function setStatus(msg){ statusEl.textContent = msg; }
     function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB']; var i=0; var v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
@@ -160,84 +166,74 @@
       fileStatus.textContent = f ? ('selected: ' + f.name + ' (' + prettyBytes(f.size) + ')') : '';
     });
 
+    // Native submit to iframe: only preventDefault on validation failures
+    form.addEventListener('submit', function(e){
+      var f = fileInput.files && fileInput.files[0];
+      if (!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
+      if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
+        e.preventDefault(); setStatus('png/jpeg/webp only'); return;
+      }
+      if (f.size > 10*1024*1024){
+        e.preventDefault(); setStatus('file size limit: 10mb.'); return;
+      }
+      var hp = document.querySelector('input[name="website"]');
+      if (hp && hp.value){
+        e.preventDefault(); setStatus('spam blocked.'); return;
+      }
 
-     // ------- submit via fetch(FormData) -------
-form.addEventListener('submit', async function(e){
-  e.preventDefault();
-
-  var f = fileInput.files && fileInput.files[0];
-  if (!f){ setStatus('no image uploaded'); return; }
-  if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
-    setStatus('png/jpeg/webp only'); return;
-  }
-  if (f.size > 10*1024*1024){
-    setStatus('file size limit: 10mb'); return;
-  }
-  var hp = document.querySelector('input[name="website"]');
-  if (hp && hp.value){
-    setStatus('spam blocked'); return;
-  }
-
-  // normalize text before upload
-  ['hid-title','hid-city','hid-country'].forEach(function(id){
-    var el = document.getElementById(id);
-    if (el) el.value = (el.value||'').toLowerCase().slice(0,30);
-  });
-
-  // disable button + show uploading
-  btn.disabled = true;
-  setStatus('uploading...');
-
-  try {
-    // FORCE-BUILD FORMDATA EXPLICITLY
-    var fd = new FormData();
-    fd.append('sticker', fileInput.files[0], fileInput.files[0].name);
-    fd.append('title', (document.getElementById('hid-title')?.value || '').toLowerCase().slice(0,30));
-    fd.append('city', (document.getElementById('hid-city')?.value || '').toLowerCase().slice(0,30));
-    fd.append('country', (document.getElementById('hid-country')?.value || '').toLowerCase().slice(0,30));
-    fd.append('website', document.querySelector('input[name="website"]')?.value || '');
-
-    var resp = await fetch(form.action, { method: 'POST', body: fd });
-
-    // debug: log what came back
-    console.log('status:', resp.status);
-    var raw = await resp.text();
-    console.log('body:', raw);
-
-    var data = null;
-    try { data = JSON.parse(raw); } catch (_){}
-
-    btn.disabled = false;
-
-    if (resp.ok && data && data.ok) {
-      banner.classList.remove('error');
-      banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
-      form.reset();
-      if (fileStatus) fileStatus.textContent = '';
-      hideCursor();
-      ['title','city','country'].forEach(function(fld){
-        var line = document.querySelector('.line[data-field="' + fld + '"]');
-        var typed = line && line.querySelector('.typed');
-        var ph = line && line.getAttribute('data-ph');
-        if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
+      // normalize text before upload
+      ['hid-title','hid-city','hid-country'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) el.value = (el.value||'').toLowerCase().slice(0,30);
       });
-      setStatus('');
-    } else {
-      banner.classList.add('error');
-      var msg = (data && data.error) ? String(data.error).toLowerCase()
-              : 'upload failed (' + resp.status + ')';
-      banner.textContent = msg;
-      setStatus(msg);
-    }
-  } catch (err) {
-    console.error(err);
-    btn.disabled = false;
-    banner.classList.add('error');
-    banner.textContent = 'upload failed (network/error)';
-    setStatus('upload failed (network/error)');
-  }
-});
 
-</script>
+      // disable button + show uploading; allow native submit to proceed
+      btn.disabled = true;
+      setStatus('uploading...');
+
+      // start 20s timeout fail-safe
+      clearTimeout(uploadTimer);
+      uploadTimer = setTimeout(function(){
+        btn.disabled = false;
+        setStatus('upload failed (no response).');
+        console.warn('[tags] no postMessage within 20s');
+      }, 20000);
+    });
+
+    // ------- receive result from Apps Script via postMessage -------
+    // Make sure your GAS doPost returns HTML that does: window.parent.postMessage({source:'tags-webapp', ok:true|false, ...}, '*')
+    const ALLOWED = ['https://script.google.com','https://script.googleusercontent.com'];
+    window.addEventListener('message', function(e){
+      if (!ALLOWED.includes(e.origin)) return;
+      var d = e.data || {};
+      if (d.source !== 'tags-webapp') return;
+
+      // stop the fail-safe timer
+      clearTimeout(uploadTimer);
+
+      // re-enable button
+      btn.disabled = false;
+
+      // show success or error (stay on page)
+      banner.classList.remove('error');
+      if (d.ok) {
+        banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
+        form.reset();
+        if (fileStatus) fileStatus.textContent = '';
+        hideCursor();
+        // reset typed placeholders
+        ['title','city','country'].forEach(function(f){
+          var line = document.querySelector('.line[data-field="' + f + '"]');
+          var typed = line && line.querySelector('.typed');
+          var ph = line && line.getAttribute('data-ph');
+          if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
+        });
+        setStatus('');
+      } else {
+        banner.textContent = d.error ? String(d.error).toLowerCase() : 'upload failed.';
+        banner.classList.add('error');
+      }
+    });
+  </script>
 </body>
 </html>
