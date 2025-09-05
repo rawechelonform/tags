@@ -58,12 +58,13 @@
     <div class="spacer-title"></div>
 
     <!-- Hidden iframe so the page doesn't navigate away on submit -->
-    <iframe name="upload_iframe" style="width:100%;height:140px;border:1px dashed #0f0" aria-hidden="true"></iframe>
+    <iframe name="upload_iframe" style="width:100%;height:140px;border:1px dashed #0f0"></iframe>
 
     <!-- Native POST to Apps Script, but target the hidden iframe -->
     <form id="tags_form"
-      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
-      method="POST" enctype="multipart/form-data" target="upload_iframe" novalidate>
+  action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
+  method="POST" enctype="multipart/form-data" target="upload_iframe" novalidate>
+  <input id="sticker" type="file" name="sticker" accept=".png,.jpg,.jpeg,.webp" required>
 
       <!-- UPLOAD -->
       <div class="q">UPLOAD IMAGE</div>
