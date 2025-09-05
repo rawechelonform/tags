@@ -2,92 +2,280 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>tag the wall</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TAG THE WALL</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:,">
   <style>
-    body { font-family: system-ui, sans-serif; margin: 24px; text-transform: none }
-    .status { margin-top: 12px; font-size: 14px }
-    .status.ok { color: #107010 }
-    .status.err { color: #b00020 }
-    .hidden { display: none }
-    label { display: block; margin: 8px 0 4px }
-    input[type="text"] { width: 280px; max-width: 100% }
-    button { margin-top: 12px }
+    :root{
+      --bg:#000; --crt:#00ff00; --crt-dim:rgba(0,255,0,.55); --crt-soft: rgba(0,255,0,.18);
+      --fs:20px; --ls:.08em; --lh:1.3;
+      --stage-offset:56px; --wrap-w:94vw; --max-w:1600px; --left-offset:1in;
+      --sep-title:24px; --between-q:18px; --row-gap:12px; --caret-gap:1ch; --btn-w:240px;
+    }
+    *{ box-sizing:border-box }
+    html,body{ height:100%; margin:0 }
+    body{
+      background:var(--bg); color:var(--crt);
+      font-family:'DotGothic16',system-ui,monospace;
+      text-transform:uppercase; letter-spacing:var(--ls); font-size:var(--fs);
+      line-height:calc(var(--lh)*1em);
+    }
+    .wrap{
+      width:var(--wrap-w); max-width:var(--max-w);
+      margin:calc(var(--stage-offset)) auto 32px;
+      padding:0 calc(12px + var(--left-offset)); /* symmetric left/right padding */
+      position:relative;
+    }
+    h1{ margin:0; font-weight:700; font-size:var(--fs); line-height:calc(var(--lh)*1em); }
+    .spacer-title{ height: var(--sep-title); }
+
+    .row-spacer{ height: var(--between-q); } /* extra space above each question */
+
+    .q{ margin-top: var(--between-q); }
+    .line{ display:flex; align-items:baseline; gap:var(--caret-gap); margin-top:var(--row-gap); }
+    .no-caret .caret{ display:none; }
+
+    .typed{ min-height:calc(var(--lh)*1em); line-height:calc(var(--lh)*1em); white-space:pre-wrap; color:var(--crt); }
+    .typed.ph{ color:var(--crt-dim); }
+
+    .cursor-block{ display:inline-block; width:1.1ch; height:1em; background:var(--crt); color:#000;
+                   transform: translateY(calc((var(--lh) - 1) * 0.5em));
+                   animation: cursorBlink .8s steps(1,end) infinite; vertical-align:baseline; }
+    @keyframes cursorBlink{0%,45%{background:var(--crt);color:#000}50%,100%{background:transparent;color:transparent}}
+
+    .btn{ display:inline-block; width:var(--btn-w); padding:10px 14px; background:var(--bg); color:var(--crt);
+          border:1px solid var(--crt); font:inherit; font-weight:700; text-align:center; cursor:pointer; user-select:none; white-space:nowrap;}
+    .btn:hover,.btn:focus,.btn:active{ background: var(--crt-soft); box-shadow: 0 0 0 2px var(--crt-soft) inset; outline: none; }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; }
+
+    input[type="file"]{ display:none }
+    .file-status{ margin-left:12px; font-style:italic; color:var(--crt-dim); text-transform:none; white-space:nowrap; }
+
+    /* success/error spot next to GO */
+    .status{ display:inline-block; margin-left:14px; font-style:italic; white-space:nowrap; vertical-align:baseline; color:var(--crt); text-transform:lowercase; }
+
+    .hid-input{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; border:0; outline:none; background:transparent; color:transparent; caret-color:transparent; text-transform:lowercase; }
+    .hp{ position:absolute; left:-9999px; top:-9999px; }
+
+    /* top-right <BACK> link with same inset as header has on the left */
+    .back-link{
+      position:absolute; right: calc(12px + var(--left-offset)); top:0;
+      color:var(--crt); text-decoration:none; font-weight:700;
+    }
+    .back-link .label{ text-decoration:none; }
+    .back-link .bracket{ text-decoration:none; }
+    .back-link:hover .label{ text-decoration:underline; } /* underline only the word BACK on hover */
   </style>
 </head>
 <body>
-  <h1>tag the wall</h1>
+  <div class="wrap">
+    <a class="back-link" href="https://rawechelonform.neocities.org/girlsroom">
+      <span class="bracket">&lt;</span><span class="label">BACK</span><span class="bracket">&gt;</span>
+    </a>
+    <h1>TAG THE WALL</h1>
+    <div class="spacer-title"></div>
 
-  <!-- Hidden iframe target so the page doesn't navigate on submit -->
-  <iframe name="upload_iframe" id="upload_iframe" class="hidden"></iframe>
+    <!-- Hidden iframe target -->
+    <iframe name="upload_iframe" style="display:none"></iframe>
 
-  <form id="tag-form" method="POST" enctype="multipart/form-data" target="upload_iframe">
-    <label>image</label>
-    <input type="file" id="sticker" name="sticker" accept="image/*" required>
+    <!-- Native POST to Apps Script -->
+    <form id="tags_form"
+      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
+      method="POST" enctype="multipart/form-data" target="upload_iframe" novalidate>
 
-    <label>place of tag</label>
-    <input type="text" name="title" placeholder="eg: metro_station">
+      <!-- UPLOAD -->
+      <div class="row-spacer"></div>
+      <div class="q">UPLOAD IMAGE</div>
+      <div class="line no-caret">
+        <span class="caret">></span>
+        <label for="sticker" class="btn">UPLOAD IMAGE</label>
+        <input id="sticker" type="file" name="sticker" accept=".png,.jpg,.jpeg,.webp" required />
+        <span id="fileStatus" class="file-status"></span>
+      </div>
 
-    <label>city</label>
-    <input type="text" name="city" placeholder="eg: budapest">
+      <!-- base64 fallback fields -->
+      <input type="hidden" name="sticker_b64" id="sticker_b64">
+      <input type="hidden" name="sticker_name" id="sticker_name">
+      <input type="hidden" name="sticker_type" id="sticker_type">
 
-    <label>country</label>
-    <input type="text" name="country" placeholder="eg: hu">
+      <!-- PLACE OF TAG -->
+      <div class="row-spacer"></div>
+      <div class="q">PLACE OF TAG</div>
+      <div class="line" data-field="title" data-ph="'ZËRGË COFFEESHOP', 'BERLIN WALL', 'STRIPPER POLE' (optional)">
+        <span class="caret">></span>
+        <div class="typed" id="typed-title"></div>
+        <input id="hid-title" class="hid-input" type="text" name="title" maxlength="30" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
 
-    <div class="status" id="status"></div>
-    <button type="submit">submit</button>
-  </form>
+      <!-- CITY -->
+      <div class="row-spacer"></div>
+      <div class="q">CITY</div>
+      <div class="line" data-field="city" data-ph="NEW YORK CITY">
+        <span class="caret">></span>
+        <div class="typed" id="typed-city"></div>
+        <input id="hid-city" class="hid-input" type="text" name="city" maxlength="30" autocomplete="address-level2" autocapitalize="off" spellcheck="false">
+      </div>
+
+      <!-- COUNTRY -->
+      <div class="row-spacer"></div>
+      <div class="q">COUNTRY</div>
+      <div class="line" data-field="country" data-ph="USA">
+        <span class="caret">></span>
+        <div class="typed" id="typed-country"></div>
+        <input id="hid-country" class="hid-input" type="text" name="country" maxlength="30" autocomplete="country-name" autocapitalize="off" spellcheck="false">
+      </div>
+
+      <!-- Honeypot -->
+      <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" />
+
+      <!-- GO + inline status -->
+      <div class="row-spacer"></div>
+      <div class="line no-caret">
+        <span class="caret">></span>
+        <button id="submitBtn" type="submit" class="btn">GO</button>
+        <span id="status" class="status"></span>
+      </div>
+    </form>
+
+    <!-- one global cursor (hidden until focus/typing) -->
+    <span id="cursor" class="cursor-block" aria-hidden="true" style="display:none;"></span>
+  </div>
 
   <script>
-    // paste your deployed GAS Web App URL (must end with /exec)
-    const UPLOAD_ENDPOINT = 'PASTE_YOUR_WEB_APP_EXEC_URL_HERE';
+    // ------- single moving block-cursor -------
+    var cursorEl = document.getElementById('cursor');
+    function attachCursorTo(typedEl){ if (!typedEl) return; typedEl.appendChild(cursorEl); cursorEl.style.display=''; }
+    function hideCursor(){ cursorEl.style.display='none'; document.body.appendChild(cursorEl); }
 
-    const form = document.getElementById('tag-form');
-    const statusEl = document.getElementById('status');
-    const fileInput = document.getElementById('sticker');
+    // ------- bind "terminal" fields -------
+    function bindTermField(field){
+      var line  = document.querySelector('.line[data-field="' + field + '"]');
+      if (!line) return;
+      var typed = line.querySelector('.typed');
+      var input = document.getElementById('hid-' + field);
+      var ph    = line.getAttribute('data-ph') || '';
 
-    // set the action dynamically so you only change it in one place
-    form.action = UPLOAD_ENDPOINT;
+      line.addEventListener('click', function(){ input.focus(); });
 
-    form.addEventListener('submit', (e) => {
-      status('');
-      const f = fileInput.files[0];
-      if (!f) {
-        e.preventDefault();
-        status('no image uploaded', true);
-        return;
+      function render(showPh){
+        if (showPh === undefined) showPh = true;
+        var v = input.value || '';
+        if (!v && showPh){ typed.textContent = ph; typed.classList.add('ph'); }
+        else { typed.textContent = v.toUpperCase(); typed.classList.remove('ph'); }
       }
-      if (f.size > 10 * 1024 * 1024) {
-        e.preventDefault();
-        status('file size limit: 10mb', true);
-        return;
+      input.addEventListener('focus', function(){ render(false); attachCursorTo(typed); });
+      input.addEventListener('input', function(){
+        input.value = (input.value || '').toLowerCase().slice(0,30);
+        render(false); attachCursorTo(typed);
+      });
+      input.addEventListener('blur', function(){ hideCursor(); if (!input.value) render(true); });
+      render(true);
+    }
+    ['title','city','country'].forEach(bindTermField);
+
+    // ------- file UI + base64 fallback + immediate size validation -------
+    var form       = document.getElementById('tags_form');
+    var btn        = document.getElementById('submitBtn');
+    var statusEl   = document.getElementById('status');
+    var fileInput  = document.getElementById('sticker');
+    var fileStatus = document.getElementById('fileStatus');
+
+    var b64El  = document.getElementById('sticker_b64');
+    var nameEl = document.getElementById('sticker_name');
+    var typeEl = document.getElementById('sticker_type');
+
+    var MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+
+    function setStatus(msg){ statusEl.textContent = msg; }
+    function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB']; var i=0; var v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
+
+    // immediate size check on selection
+    fileInput.addEventListener('change', function(){
+      var f = fileInput.files && fileInput.files[0];
+      // clear previous base64 + status
+      b64El.value = ''; nameEl.value = ''; typeEl.value = '';
+      setStatus('');
+      if (!f){ fileStatus.textContent = ''; btn.disabled = false; return; }
+
+      if (f.size > MAX_SIZE){
+        fileStatus.textContent = 'file size limit: 5 mb';
+        btn.disabled = true; // block before submit
+      } else {
+        fileStatus.textContent = 'selected: ' + f.name + ' (' + prettyBytes(f.size) + ')';
+        btn.disabled = false;
       }
-      status('uploading…');
     });
 
-    window.addEventListener('message', (event) => {
-      // Accept replies from Google’s web app origins
-      const okOrigin = event.origin === 'https://script.google.com' ||
-                       event.origin === 'https://script.googleusercontent.com';
+    function readFileToBase64(file){
+      return new Promise(function(resolve,reject){
+        var r = new FileReader();
+        r.onload = function(){ resolve(String(r.result||'')); };
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+    }
+
+    var reading = false;
+    form.addEventListener('submit', async function(e){
+      var f = fileInput.files && fileInput.files[0];
+      if (!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
+      if (f.size > MAX_SIZE){ e.preventDefault(); setStatus('file size limit: 5 mb'); return; }
+      if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
+        e.preventDefault(); setStatus('png/jpeg/webp only'); return; }
+      var hp = document.querySelector('input[name="website"]'); if (hp && hp.value){
+        e.preventDefault(); setStatus('spam blocked.'); return; }
+
+      // Ensure base64 fallback is ready before native submit
+      if (!b64El.value && !reading) {
+        e.preventDefault();
+        reading = true;
+        btn.disabled = true; setStatus('prepping upload...');
+        try {
+          var dataUrl = await readFileToBase64(f);
+          var parts = dataUrl.split(',', 2);
+          b64El.value  = parts[1] || '';
+          nameEl.value = f.name || 'upload';
+          typeEl.value = f.type || 'application/octet-stream';
+          reading = false;
+          btn.disabled = false; setStatus('uploading...');
+          form.submit(); // continue with native post to iframe
+        } catch (err) {
+          reading = false; btn.disabled = false; setStatus('failed to read file.');
+        }
+      } else {
+        setStatus('uploading...');
+      }
+    });
+
+    // ------- receive result from Apps Script via postMessage -------
+    window.addEventListener('message', function(e){
+      var okOrigin =
+        /^https:\/\/script\.google\.com$/.test(e.origin) ||
+        /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
       if (!okOrigin) return;
 
-      const data = event.data || {};
-      if (data.source !== 'tags-webapp') return;
+      var d = e.data || {};
+      if (d.source !== 'tags-webapp') return;
 
-      if (data.ok) {
-        status('tag submitted. it may take a few days to see tag added to the wall.', false, true);
+      btn.disabled = false;
+
+      if (d.ok) {
+        // success: show message next to GO, lower-case italic
+        setStatus('tag submitted. it may take a few days to see tag added to the wall.');
         form.reset();
+        fileStatus.textContent = '';
+        // reset typed placeholders
+        ['title','city','country'].forEach(function(fld){
+          var line = document.querySelector('.line[data-field="' + fld + '"]');
+          var typed = line && line.querySelector('.typed');
+          var ph = line && line.getAttribute('data-ph');
+          if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
+        });
       } else {
-        status(data.error || 'upload failed', true);
-        console.debug('debug:', data.debug);
+        setStatus(d.error ? String(d.error).toLowerCase() : 'upload failed.');
       }
     });
-
-    function status(msg, isErr = false, isOk = false) {
-      statusEl.textContent = msg;
-      statusEl.classList.toggle('err', !!isErr);
-      statusEl.classList.toggle('ok', !!isOk);
-    }
   </script>
 </body>
 </html>
