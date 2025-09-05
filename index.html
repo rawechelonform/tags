@@ -162,74 +162,82 @@
 
 
      // ------- submit via fetch(FormData) -------
-  form.addEventListener('submit', async function(e){
-    e.preventDefault();
+form.addEventListener('submit', async function(e){
+  e.preventDefault();
 
-    var f = fileInput.files && fileInput.files[0];
-    if (!f){ setStatus('no image uploaded'); return; }
-    if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
-      setStatus('png/jpeg/webp only'); return;
-    }
-    if (f.size > 10*1024*1024){
-      setStatus('file size limit: 10mb'); return;
-    }
-    var hp = document.querySelector('input[name="website"]');
-    if (hp && hp.value){
-      setStatus('spam blocked'); return;
-    }
+  var f = fileInput.files && fileInput.files[0];
+  if (!f){ setStatus('no image uploaded'); return; }
+  if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
+    setStatus('png/jpeg/webp only'); return;
+  }
+  if (f.size > 10*1024*1024){
+    setStatus('file size limit: 10mb'); return;
+  }
+  var hp = document.querySelector('input[name="website"]');
+  if (hp && hp.value){
+    setStatus('spam blocked'); return;
+  }
 
-    ['hid-title','hid-city','hid-country'].forEach(function(id){
-      var el = document.getElementById(id);
-      if (el) el.value = (el.value||'').toLowerCase().slice(0,30);
-    });
-
-    // disable button + show uploading
-    btn.disabled = true;
-    setStatus('uploading...');
-
-    try {
-      // send multipart/form-data with the file + fields
-      var fd = new FormData(form);
-      var resp = await fetch(form.action, { method: 'POST', body: fd });
-
-      // debug: log what came back
-      console.log('status:', resp.status);
-      var raw = await resp.text();
-      console.log('body:', raw);
-
-      var data = null;
-      try { data = JSON.parse(raw); } catch (_){}
-
-      btn.disabled = false;
-
-      if (resp.ok && data && data.ok) {
-        banner.classList.remove('error');
-        banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
-        form.reset();
-        if (fileStatus) fileStatus.textContent = '';
-        hideCursor();
-        ['title','city','country'].forEach(function(fld){
-          var line = document.querySelector('.line[data-field="' + fld + '"]');
-          var typed = line && line.querySelector('.typed');
-          var ph = line && line.getAttribute('data-ph');
-          if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
-        });
-        setStatus('');
-      } else {
-        banner.classList.add('error');
-        var msg = (data && data.error) ? String(data.error).toLowerCase()
-                : 'upload failed (' + resp.status + ')';
-        banner.textContent = msg;
-        setStatus(msg);
-      }
-    } catch (err) {
-      console.error(err);
-      btn.disabled = false;
-      banner.classList.add('error');
-      banner.textContent = 'upload failed (network/error)';
-      setStatus('upload failed (network/error)');
-    }
+  // normalize text before upload
+  ['hid-title','hid-city','hid-country'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.value = (el.value||'').toLowerCase().slice(0,30);
   });
+
+  // disable button + show uploading
+  btn.disabled = true;
+  setStatus('uploading...');
+
+  try {
+    // FORCE-BUILD FORMDATA EXPLICITLY
+    var fd = new FormData();
+    fd.append('sticker', fileInput.files[0], fileInput.files[0].name);
+    fd.append('title', (document.getElementById('hid-title')?.value || '').toLowerCase().slice(0,30));
+    fd.append('city', (document.getElementById('hid-city')?.value || '').toLowerCase().slice(0,30));
+    fd.append('country', (document.getElementById('hid-country')?.value || '').toLowerCase().slice(0,30));
+    fd.append('website', document.querySelector('input[name="website"]')?.value || '');
+
+    var resp = await fetch(form.action, { method: 'POST', body: fd });
+
+    // debug: log what came back
+    console.log('status:', resp.status);
+    var raw = await resp.text();
+    console.log('body:', raw);
+
+    var data = null;
+    try { data = JSON.parse(raw); } catch (_){}
+
+    btn.disabled = false;
+
+    if (resp.ok && data && data.ok) {
+      banner.classList.remove('error');
+      banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
+      form.reset();
+      if (fileStatus) fileStatus.textContent = '';
+      hideCursor();
+      ['title','city','country'].forEach(function(fld){
+        var line = document.querySelector('.line[data-field="' + fld + '"]');
+        var typed = line && line.querySelector('.typed');
+        var ph = line && line.getAttribute('data-ph');
+        if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
+      });
+      setStatus('');
+    } else {
+      banner.classList.add('error');
+      var msg = (data && data.error) ? String(data.error).toLowerCase()
+              : 'upload failed (' + resp.status + ')';
+      banner.textContent = msg;
+      setStatus(msg);
+    }
+  } catch (err) {
+    console.error(err);
+    btn.disabled = false;
+    banner.classList.add('error');
+    banner.textContent = 'upload failed (network/error)';
+    setStatus('upload failed (network/error)');
+  }
+});
+
 </script>
 </body>
 </html>
