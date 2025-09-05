@@ -55,4 +55,167 @@
         <span class="caret">></span>
         <label for="sticker" class="btn">UPLOAD IMAGE</label>
         <input id="sticker" type="file" name="sticker" accept=".png,.jpg,.jpeg,.webp" required />
-        <
+        <span id="fileStatus" class="file-status"></span>
+      </div>
+
+      <!-- base64 fallback fields -->
+      <input type="hidden" name="sticker_b64" id="sticker_b64">
+      <input type="hidden" name="sticker_name" id="sticker_name">
+      <input type="hidden" name="sticker_type" id="sticker_type">
+
+      <!-- PLACE OF TAG -->
+      <div class="q">PLACE OF TAG</div>
+      <div class="line" data-field="title" data-ph="'ZËRGË COFFEESHOP', 'BERLIN WALL', 'STRIPPER POLE' (optional)">
+        <span class="caret">></span>
+        <div class="typed" id="typed-title"></div>
+        <input id="hid-title" class="hid-input" type="text" name="title" maxlength="30" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+
+      <!-- CITY -->
+      <div class="q">CITY</div>
+      <div class="line" data-field="city" data-ph="NEW YORK CITY">
+        <span class="caret">></span>
+        <div class="typed" id="typed-city"></div>
+        <input id="hid-city" class="hid-input" type="text" name="city" maxlength="30" autocomplete="address-level2" autocapitalize="off" spellcheck="false">
+      </div>
+
+      <!-- COUNTRY -->
+      <div class="q">COUNTRY</div>
+      <div class="line" data-field="country" data-ph="USA">
+        <span class="caret">></span>
+        <div class="typed" id="typed-country"></div>
+        <input id="hid-country" class="hid-input" type="text" name="country" maxlength="30" autocomplete="country-name" autocapitalize="off" spellcheck="false">
+      </div>
+
+      <!-- Honeypot -->
+      <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" />
+
+      <!-- GO + inline status -->
+      <div class="line no-caret">
+        <span class="caret">></span>
+        <button id="submitBtn" type="submit" class="btn">GO</button>
+        <span id="status" class="status"></span>
+      </div>
+    </form>
+
+    <span id="cursor" class="cursor-block" aria-hidden="true" style="display:none;"></span>
+  </div>
+
+  <script>
+    // ------- field UI -------
+    var cursorEl = document.getElementById('cursor');
+    function attachCursorTo(typedEl){ if (!typedEl) return; typedEl.appendChild(cursorEl); cursorEl.style.display=''; }
+    function hideCursor(){ cursorEl.style.display='none'; document.body.appendChild(cursorEl); }
+    function bindTermField(field){
+      var line  = document.querySelector('.line[data-field="' + field + '"]');
+      if (!line) return;
+      var typed = line.querySelector('.typed');
+      var input = document.getElementById('hid-' + field);
+      var ph    = line.getAttribute('data-ph') || '';
+      line.addEventListener('click', function(){ input.focus(); });
+      function render(showPh){
+        var v = input.value || '';
+        if (!v && showPh){ typed.textContent = ph; typed.classList.add('ph'); }
+        else { typed.textContent = v.toUpperCase(); typed.classList.remove('ph'); }
+      }
+      input.addEventListener('focus', function(){ render(false); attachCursorTo(typed); });
+      input.addEventListener('input', function(){
+        input.value = (input.value || '').toLowerCase().slice(0,30);
+        render(false); attachCursorTo(typed);
+      });
+      input.addEventListener('blur', function(){ hideCursor(); if (!input.value) render(true); });
+      render(true);
+    }
+    ['title','city','country'].forEach(bindTermField);
+
+    // ------- base64 fallback + validation -------
+    var form       = document.getElementById('tags_form');
+    var btn        = document.getElementById('submitBtn');
+    var statusEl   = document.getElementById('status');
+    var banner     = document.getElementById('banner');
+    var fileInput  = document.getElementById('sticker');
+    var fileStatus = document.getElementById('fileStatus');
+
+    var b64El  = document.getElementById('sticker_b64');
+    var nameEl = document.getElementById('sticker_name');
+    var typeEl = document.getElementById('sticker_type');
+
+    function setStatus(msg){ statusEl.textContent = msg; }
+    function prettyBytes(n){ if(!n)return''; var u=['B','KB','MB','GB']; var i=0; while(n>=1024&&i<u.length-1){n/=1024;i++} return (i?n.toFixed(1):n.toFixed(0))+' '+u[i]; }
+
+    fileInput.addEventListener('change', function(){
+      var f = fileInput.files && fileInput.files[0];
+      fileStatus.textContent = f ? ('selected: ' + f.name + ' (' + prettyBytes(f.size) + ')') : '';
+      // clear previous base64
+      b64El.value = ''; nameEl.value = ''; typeEl.value = '';
+    });
+
+    function readFileToBase64(file){
+      return new Promise(function(resolve,reject){
+        var r = new FileReader();
+        r.onload = function(){ resolve(String(r.result||'')); };
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+    }
+
+    var reading = false;
+    form.addEventListener('submit', async function(e){
+      var f = fileInput.files && fileInput.files[0];
+      if (!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
+      if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
+        e.preventDefault(); setStatus('png/jpeg/webp only'); return; }
+      if (f.size > 5*1024*1024){
+        e.preventDefault(); setStatus('file size limit: 5mb (temp for base64).'); return; }
+      var hp = document.querySelector('input[name="website"]'); if (hp && hp.value){
+        e.preventDefault(); setStatus('spam blocked.'); return; }
+
+      // Ensure base64 fallback fields are populated before letting the native submit proceed
+      if (!b64El.value && !reading) {
+        e.preventDefault();
+        reading = true;
+        btn.disabled = true; setStatus('prepping upload...');
+        try {
+          var dataUrl = await readFileToBase64(f);
+          var parts = dataUrl.split(',', 2);
+          b64El.value  = parts[1] || '';
+          nameEl.value = f.name || 'upload';
+          typeEl.value = f.type || 'application/octet-stream';
+          reading = false;
+          btn.disabled = false; setStatus('uploading...');
+          form.submit(); // continue with native post to iframe
+        } catch (err) {
+          reading = false; btn.disabled = false; setStatus('failed to read file.');
+        }
+      } else {
+        setStatus('uploading...');
+      }
+    });
+
+    // Result from Apps Script via postMessage
+    window.addEventListener('message', function(e){
+      var okOrigin = /^https:\/\/script\.google\.com$/.test(e.origin) ||
+                     /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
+      if (!okOrigin) return;
+      var d = e.data || {}; if (d.source !== 'tags-webapp') return;
+      btn.disabled = false;
+      banner.classList.remove('error');
+      if (d.ok) {
+        banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
+        form.reset(); if (fileStatus) fileStatus.textContent = '';
+        // reset typed placeholders
+        ['title','city','country'].forEach(function(fld){
+          var line = document.querySelector('.line[data-field="' + fld + '"]');
+          var typed = line && line.querySelector('.typed');
+          var ph = line && line.getAttribute('data-ph');
+          if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
+        });
+        setStatus('');
+      } else {
+        banner.textContent = d.error ? String(d.error).toLowerCase() : 'upload failed.';
+        banner.classList.add('error');
+      }
+    });
+  </script>
+</body>
+</html>
