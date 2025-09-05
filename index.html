@@ -183,52 +183,42 @@
         if (el) el.value = (el.value||'').toLowerCase().slice(0,30);
       });
 
-      // disable button + show uploading
-      btn.disabled = true;
-      setStatus('uploading...');
+     // disable button + show uploading
+btn.disabled = true;
+setStatus('uploading...');
 
-      try {
-        var fd = new FormData(form); // includes name="sticker" and text fields
-        var resp = await fetch(form.action, { method: 'POST', body: fd });
-        if (!resp.ok) throw new Error('non-2xx');
+try {
+  // send multipart/form-data with the file + fields
+  var fd = new FormData(form);
+  var resp = await fetch(form.action, { method: 'POST', body: fd });
 
-        // expect JSON; fall back to text for debugging
-        var data;
-        try { data = await resp.json(); }
-        catch {
-          var t = await resp.text();
-          console.log('non-json response from apps script:', t);
-          throw new Error('unexpected response');
-        }
+  // --- debug: always log what came back ---
+  console.log('status:', resp.status);
+  var raw = await resp.text();
+  console.log('body:', raw);
 
-        btn.disabled = false;
+  // try to parse JSON; if it's HTML or something else, data stays null
+  var data = null;
+  try { data = JSON.parse(raw); } catch (_) {}
 
-        banner.classList.remove('error');
-        if (data && data.ok){
-          banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
-          form.reset();
-          if (fileStatus) fileStatus.textContent = '';
-          hideCursor();
-          // reset typed placeholders
-          ['title','city','country'].forEach(function(fld){
-            var line = document.querySelector('.line[data-field="' + fld + '"]');
-            var typed = line && line.querySelector('.typed');
-            var ph = line && line.getAttribute('data-ph');
-            if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
-          });
-          setStatus(''); // clear inline status
-        } else {
-          banner.textContent = (data && data.error) ? String(data.error).toLowerCase() : 'upload failed.';
-          banner.classList.add('error');
-        }
-      } catch (err) {
-        console.error(err);
-        btn.disabled = false;
-        setStatus('upload failed (no response).');
-        banner.textContent = '';
-        banner.classList.remove('error');
-      }
+  btn.disabled = false;
+
+  if (resp.ok && data && data.ok) {
+    // success
+    banner.classList.remove('error');
+    banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
+    form.reset();
+    if (fileStatus) fileStatus.textContent = '';
+    hideCursor();
+    // reset typed placeholders
+    ['title','city','country'].forEach(function(fld){
+      var line = document.querySelector('.line[data-field="' + fld + '"]');
+      var typed = line && line.querySelector('.typed');
+      var ph = line && line.getAttribute('data-ph');
+      if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
     });
+    setStatus(''); // clear inline
+
   </script>
 </body>
 </html>
