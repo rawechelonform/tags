@@ -83,4 +83,92 @@
       </div>
 
       <!-- Honeypot -->
-      <input class="hp" type="text" name="websi
+      <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" />
+
+      <!-- GO + inline status -->
+      <div class="line no-caret">
+        <span class="caret">></span>
+        <button id="submitBtn" type="submit" class="btn">GO</button>
+        <span id="status" class="status"></span>
+      </div>
+    </form>
+
+    <span id="cursor" class="cursor-block" aria-hidden="true" style="display:none;"></span>
+  </div>
+
+  <script>
+    var cursorEl = document.getElementById('cursor');
+    function attachCursorTo(typedEl){ if (!typedEl) return; typedEl.appendChild(cursorEl); cursorEl.style.display=''; }
+    function hideCursor(){ cursorEl.style.display='none'; document.body.appendChild(cursorEl); }
+    function bindTermField(field){
+      var line  = document.querySelector('.line[data-field="' + field + '"]');
+      var typed = line.querySelector('.typed');
+      var input = document.getElementById('hid-' + field);
+      var ph    = line.getAttribute('data-ph') || '';
+      line.addEventListener('click', function(){ input.focus(); });
+      function render(showPh){
+        var v = input.value || '';
+        if (!v && showPh){ typed.textContent = ph; typed.classList.add('ph'); }
+        else { typed.textContent = v.toUpperCase(); typed.classList.remove('ph'); }
+      }
+      input.addEventListener('focus', function(){ render(false); attachCursorTo(typed); });
+      input.addEventListener('input', function(){
+        input.value = (input.value || '').toLowerCase().slice(0,30);
+        render(false); attachCursorTo(typed);
+      });
+      input.addEventListener('blur', function(){ hideCursor(); if (!input.value) render(true); });
+      render(true);
+    }
+    ['title','city','country'].forEach(bindTermField);
+
+    var form       = document.getElementById('tags_form');
+    var btn        = document.getElementById('submitBtn');
+    var statusEl   = document.getElementById('status');
+    var banner     = document.getElementById('banner');
+    var fileInput  = document.getElementById('sticker');
+    var fileStatus = document.getElementById('fileStatus');
+    var uploadTimer = null;
+
+    function setStatus(msg){ statusEl.textContent = msg; }
+    function prettyBytes(n){ if(!n)return''; var u=['B','KB','MB']; var i=0; while(n>=1024&&i<u.length-1){n/=1024;i++} return n.toFixed(1)+' '+u[i] }
+    fileInput.addEventListener('change', function(){
+      var f = fileInput.files && fileInput.files[0];
+      fileStatus.textContent = f ? ('selected: ' + f.name + ' (' + prettyBytes(f.size) + ')') : '';
+    });
+
+    // Native submit to iframe; only block on validation failures
+    form.addEventListener('submit', function(e){
+      var f = fileInput.files && fileInput.files[0];
+      if (!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
+      if (!['image/png','image/jpeg','image/webp'].includes(f.type)){ e.preventDefault(); setStatus('png/jpeg/webp only'); return; }
+      if (f.size > 10*1024*1024){ e.preventDefault(); setStatus('file size limit: 10mb.'); return; }
+      var hp = document.querySelector('input[name="website"]'); if (hp && hp.value){ e.preventDefault(); setStatus('spam blocked.'); return; }
+      btn.disabled = true; setStatus('uploading...');
+      clearTimeout(uploadTimer);
+      uploadTimer = setTimeout(function(){ btn.disabled = false; setStatus('upload failed (no response).'); }, 20000);
+    });
+
+    // Receive GAS postMessage
+    window.addEventListener('message', function(e){
+      console.log('[tags] message from origin:', e.origin, 'data:', e.data);
+      // Expect exactly your site origin because server targets it
+      if (e.origin !== 'https://rawechelonform.github.io') return;
+      var d = e.data || {}; if (d.source !== 'tags-webapp') return;
+
+      clearTimeout(uploadTimer); btn.disabled = false; banner.classList.remove('error');
+      if (d.ok) {
+        banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
+        form.reset(); fileStatus.textContent = ''; hideCursor();
+        ['title','city','country'].forEach(function(f){
+          var line = document.querySelector('.line[data-field="' + f + '"]');
+          var typed = line && line.querySelector('.typed'); var ph = line && line.getAttribute('data-ph');
+          if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
+        });
+        setStatus('');
+      } else {
+        banner.textContent = d.error ? String(d.error).toLowerCase() : 'upload failed.'; banner.classList.add('error');
+      }
+    });
+  </script>
+</body>
+</html>
