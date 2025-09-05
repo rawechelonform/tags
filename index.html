@@ -160,65 +160,76 @@
       fileStatus.textContent = f ? ('selected: ' + f.name + ' (' + prettyBytes(f.size) + ')') : '';
     });
 
-    // ------- submit via fetch(FormData) -------
-    form.addEventListener('submit', async function(e){
-      e.preventDefault();
 
-      var f = fileInput.files && fileInput.files[0];
-      if (!f){ setStatus('no image uploaded.'); return; }
-      if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
-        setStatus('png/jpeg/webp only'); return;
-      }
-      if (f.size > 10*1024*1024){
-        setStatus('file size limit: 10mb.'); return;
-      }
-      var hp = document.querySelector('input[name="website"]');
-      if (hp && hp.value){
-        setStatus('spam blocked.'); return;
-      }
+     // ------- submit via fetch(FormData) -------
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
 
-      // normalize text before upload
-      ['hid-title','hid-city','hid-country'].forEach(function(id){
-        var el = document.getElementById(id);
-        if (el) el.value = (el.value||'').toLowerCase().slice(0,30);
-      });
+    var f = fileInput.files && fileInput.files[0];
+    if (!f){ setStatus('no image uploaded'); return; }
+    if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
+      setStatus('png/jpeg/webp only'); return;
+    }
+    if (f.size > 10*1024*1024){
+      setStatus('file size limit: 10mb'); return;
+    }
+    var hp = document.querySelector('input[name="website"]');
+    if (hp && hp.value){
+      setStatus('spam blocked'); return;
+    }
 
-     // disable button + show uploading
-btn.disabled = true;
-setStatus('uploading...');
-
-try {
-  // send multipart/form-data with the file + fields
-  var fd = new FormData(form);
-  var resp = await fetch(form.action, { method: 'POST', body: fd });
-
-  // --- debug: always log what came back ---
-  console.log('status:', resp.status);
-  var raw = await resp.text();
-  console.log('body:', raw);
-
-  // try to parse JSON; if it's HTML or something else, data stays null
-  var data = null;
-  try { data = JSON.parse(raw); } catch (_) {}
-
-  btn.disabled = false;
-
-  if (resp.ok && data && data.ok) {
-    // success
-    banner.classList.remove('error');
-    banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
-    form.reset();
-    if (fileStatus) fileStatus.textContent = '';
-    hideCursor();
-    // reset typed placeholders
-    ['title','city','country'].forEach(function(fld){
-      var line = document.querySelector('.line[data-field="' + fld + '"]');
-      var typed = line && line.querySelector('.typed');
-      var ph = line && line.getAttribute('data-ph');
-      if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
+    ['hid-title','hid-city','hid-country'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.value = (el.value||'').toLowerCase().slice(0,30);
     });
-    setStatus(''); // clear inline
 
-  </script>
+    // disable button + show uploading
+    btn.disabled = true;
+    setStatus('uploading...');
+
+    try {
+      // send multipart/form-data with the file + fields
+      var fd = new FormData(form);
+      var resp = await fetch(form.action, { method: 'POST', body: fd });
+
+      // debug: log what came back
+      console.log('status:', resp.status);
+      var raw = await resp.text();
+      console.log('body:', raw);
+
+      var data = null;
+      try { data = JSON.parse(raw); } catch (_){}
+
+      btn.disabled = false;
+
+      if (resp.ok && data && data.ok) {
+        banner.classList.remove('error');
+        banner.textContent = 'tag submitted. it may take a few days to see tag added to the wall.';
+        form.reset();
+        if (fileStatus) fileStatus.textContent = '';
+        hideCursor();
+        ['title','city','country'].forEach(function(fld){
+          var line = document.querySelector('.line[data-field="' + fld + '"]');
+          var typed = line && line.querySelector('.typed');
+          var ph = line && line.getAttribute('data-ph');
+          if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
+        });
+        setStatus('');
+      } else {
+        banner.classList.add('error');
+        var msg = (data && data.error) ? String(data.error).toLowerCase()
+                : 'upload failed (' + resp.status + ')';
+        banner.textContent = msg;
+        setStatus(msg);
+      }
+    } catch (err) {
+      console.error(err);
+      btn.disabled = false;
+      banner.classList.add('error');
+      banner.textContent = 'upload failed (network/error)';
+      setStatus('upload failed (network/error)');
+    }
+  });
+</script>
 </body>
 </html>
