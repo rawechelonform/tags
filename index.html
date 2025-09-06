@@ -21,12 +21,7 @@
       text-transform:uppercase; letter-spacing:var(--ls); font-size:var(--fs);
       line-height:calc(var(--lh)*1em);
     }
-    .wrap{
-      width:var(--wrap-w); max-width:var(--max-w);
-      margin:calc(var(--stage-offset)) auto 32px;
-      padding:0 calc(12px + var(--left-offset)); /* symmetric left/right */
-    }
-    /* Header row: left title, right back link — perfectly aligned by the same padding */
+    .wrap{ width:var(--wrap-w); max-width:var(--max-w); margin:calc(var(--stage-offset)) auto 32px; padding:0 calc(12px + var(--left-offset)); }
     .hdr{ display:flex; align-items:baseline; justify-content:space-between; }
     h1{ margin:0; font-weight:700; font-size:var(--fs); line-height:calc(var(--lh)*1em); }
     .back-link{ color:var(--crt); text-decoration:none; font-weight:700; }
@@ -35,8 +30,7 @@
     .back-link:hover .label{ text-decoration:underline; }
     .spacer-title{ height: var(--sep-title); }
 
-    .row-spacer{ height: var(--between-q); } /* extra space above each question */
-
+    .row-spacer{ height: var(--between-q); }
     .q{ margin-top: var(--between-q); }
     .line{ display:flex; align-items:baseline; gap:var(--caret-gap); margin-top:var(--row-gap); }
     .no-caret .caret{ display:none; }
@@ -44,13 +38,9 @@
     .typed{ min-height:calc(var(--lh)*1em); line-height:calc(var(--lh)*1em); white-space:pre-wrap; color:var(--crt); }
     .typed.ph{ color:var(--crt-dim); }
 
-    /* Inline block-cursor that sits over the character at the caret */
-    .cursor-block{
-      display:inline-block; width:1.1ch; height:1em;
-      background:var(--crt); color:#000;
-      transform: translateY(calc((var(--lh) - 1) * 0.5em));
-      animation: cursorBlink .8s steps(1,end) infinite; vertical-align:baseline;
-    }
+    .cursor-block{ display:inline-block; width:1.1ch; height:1em; background:var(--crt); color:#000;
+                   transform: translateY(calc((var(--lh) - 1) * 0.5em));
+                   animation: cursorBlink .8s steps(1,end) infinite; vertical-align:baseline; }
     @keyframes cursorBlink{0%,45%{background:var(--crt);color:#000}50%,100%{background:transparent;color:transparent}}
 
     .btn{ display:inline-block; width:var(--btn-w); padding:10px 14px; background:var(--bg); color:var(--crt);
@@ -60,8 +50,6 @@
 
     input[type="file"]{ display:none }
     .file-status{ margin-left:12px; font-style:italic; color:var(--crt-dim); text-transform:none; white-space:nowrap; }
-
-    /* success/error spot next to GO */
     .status{ display:inline-block; margin-left:14px; font-style:italic; white-space:nowrap; vertical-align:baseline; color:var(--crt); text-transform:lowercase; }
 
     .hid-input{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; border:0; outline:none; background:transparent; color:transparent; caret-color:transparent; text-transform:lowercase; }
@@ -71,17 +59,15 @@
 <body>
   <div class="wrap">
     <div class="hdr">
-      <h1>*** TAG THE WALL ***</h1>
+      <h1>TAG THE WALL</h1>
       <a class="back-link" href="https://rawechelonform.neocities.org/girlsroom">
         <span class="bracket">&lt;</span><span class="label">BACK</span><span class="bracket">&gt;</span>
       </a>
     </div>
     <div class="spacer-title"></div>
 
-    <!-- Hidden iframe target -->
     <iframe name="upload_iframe" style="display:none"></iframe>
 
-    <!-- Native POST to Apps Script -->
     <form id="tags_form"
       action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
       method="POST" enctype="multipart/form-data" target="upload_iframe" novalidate>
@@ -92,7 +78,7 @@
       <div class="line no-caret">
         <span class="caret">></span>
         <label for="sticker" class="btn">UPLOAD IMAGE</label>
-        <input id="sticker" type="file" name="sticker" accept=".png,.jpg,.jpeg,.webp" required />
+        <input id="sticker" type="file" name="sticker" accept=".png,.jpg,.jpeg" required />
         <span id="fileStatus" class="file-status"></span>
       </div>
 
@@ -100,6 +86,10 @@
       <input type="hidden" name="sticker_b64" id="sticker_b64">
       <input type="hidden" name="sticker_name" id="sticker_name">
       <input type="hidden" name="sticker_type" id="sticker_type">
+
+      <!-- anti-bot helpers -->
+      <input type="hidden" name="ttf_ms" id="ttf_ms"> <!-- time to fill, ms -->
+      <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" />
 
       <!-- PLACE OF TAG -->
       <div class="row-spacer"></div>
@@ -128,9 +118,6 @@
         <input id="hid-country" class="hid-input" type="text" name="country" maxlength="30" autocomplete="country-name" autocapitalize="off" spellcheck="false">
       </div>
 
-      <!-- Honeypot -->
-      <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" />
-
       <!-- GO + inline status -->
       <div class="row-spacer"></div>
       <div class="line no-caret">
@@ -142,171 +129,89 @@
   </div>
 
   <script>
-    // ===== caret-following renderer for typed fields =====
-    function escapeHTML(s){
-      return String(s).replace(/[&<>"']/g, c => (
-        c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;'
-      ));
-    }
+    /* caret-following renderer */
+    function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>c==='&'?'&amp;':c==='<'?'&lt;':c==='>'?'&gt;':c==='"'?'&quot;':'&#39;');}
     function bindTermField(field){
-      var line  = document.querySelector('.line[data-field="' + field + '"]');
-      if (!line) return;
-      var typed = line.querySelector('.typed');
-      var input = document.getElementById('hid-' + field);
-      var ph    = line.getAttribute('data-ph') || '';
-
-      line.addEventListener('click', function(){ input.focus(); });
-
-      function render(showPh, withCursor){
-        if (showPh === undefined) showPh = true;
-        var raw = (input.value || '').toLowerCase().slice(0,30);
-        var v   = raw.toUpperCase();
-
-        if (!raw && showPh){
-          typed.textContent = ph;
-          typed.classList.add('ph');
-          return;
-        }
-        typed.classList.remove('ph');
-
-        if (withCursor && document.activeElement === input){
-          var idx = input.selectionStart != null ? input.selectionStart : v.length;
-          // Clamp idx
-          if (idx < 0) idx = 0;
-          if (idx > v.length) idx = v.length;
-
-          var before = escapeHTML(v.slice(0, idx));
-          var atChar = v.slice(idx, idx+1);
-          var middle = '<span class="cursor-block">' + (atChar ? escapeHTML(atChar) : '&nbsp;') + '</span>';
-          var after  = escapeHTML(v.slice(idx + (atChar ? 1 : 0)));
-          typed.innerHTML = before + middle + after;
-        } else {
-          typed.textContent = v;
-        }
+      var line=document.querySelector('.line[data-field="'+field+'"]'); if(!line)return;
+      var typed=line.querySelector('.typed'); var input=document.getElementById('hid-'+field); var ph=line.getAttribute('data-ph')||'';
+      line.addEventListener('click',function(){input.focus();});
+      function render(showPh,withCursor){
+        if(showPh===undefined)showPh=true;
+        var raw=(input.value||'').toLowerCase().slice(0,30), v=raw.toUpperCase();
+        if(!raw&&showPh){typed.textContent=ph; typed.classList.add('ph'); return;} typed.classList.remove('ph');
+        if(withCursor&&document.activeElement===input){
+          var idx=input.selectionStart!=null?input.selectionStart:v.length; if(idx<0)idx=0; if(idx>v.length)idx=v.length;
+          var before=escapeHTML(v.slice(0,idx)); var at=v.slice(idx,idx+1); var mid='<span class="cursor-block">'+(at?escapeHTML(at):'&nbsp;')+'</span>';
+          var after=escapeHTML(v.slice(idx+(at?1:0))); typed.innerHTML=before+mid+after;
+        }else{ typed.textContent=v; }
       }
-
-      // keep model in lowercase, render uppercase
-      input.addEventListener('input', function(){
-        input.value = (input.value || '').toLowerCase().slice(0,30);
-        render(false, true);
-      });
-      input.addEventListener('focus', function(){ render(false, true); });
-      input.addEventListener('blur',  function(){ render(true,  false); });
-      input.addEventListener('keyup', function(){ render(false, true); });
-      input.addEventListener('click', function(){ render(false, true); });
-      document.addEventListener('selectionchange', function(){
-        if (document.activeElement === input) render(false, true);
-      });
-
-      render(true, false);
+      input.addEventListener('input',function(){input.value=(input.value||'').toLowerCase().slice(0,30); render(false,true);});
+      input.addEventListener('focus',function(){render(false,true);});
+      input.addEventListener('blur', function(){render(true,false);});
+      input.addEventListener('keyup',function(){render(false,true);});
+      input.addEventListener('click',function(){render(false,true);});
+      document.addEventListener('selectionchange',function(){ if(document.activeElement===input) render(false,true); });
+      render(true,false);
     }
     ['title','city','country'].forEach(bindTermField);
 
-    // ===== upload logic (unchanged behavior, includes base64 fallback + fail-safe) =====
-    var form       = document.getElementById('tags_form');
-    var btn        = document.getElementById('submitBtn');
-    var statusEl   = document.getElementById('status');
-    var fileInput  = document.getElementById('sticker');
-    var fileStatus = document.getElementById('fileStatus');
+    /* upload + base64 fallback + status */
+    var form=document.getElementById('tags_form'), btn=document.getElementById('submitBtn'), statusEl=document.getElementById('status');
+    var fileInput=document.getElementById('sticker'), fileStatus=document.getElementById('fileStatus');
+    var b64El=document.getElementById('sticker_b64'), nameEl=document.getElementById('sticker_name'), typeEl=document.getElementById('sticker_type');
+    var ttfEl=document.getElementById('ttf_ms'), t0=Date.now();
 
-    var b64El  = document.getElementById('sticker_b64');
-    var nameEl = document.getElementById('sticker_name');
-    var typeEl = document.getElementById('sticker_type');
+    var MAX_SIZE=5*1024*1024, uploadTimer=null;
+    function setStatus(m){ statusEl.textContent=m; }
+    function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB'],i=0,v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
 
-    var MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-    var uploadTimer = null;
-
-    function setStatus(msg){ statusEl.textContent = msg; }
-    function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB']; var i=0; var v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
-
-    // immediate size check
-    fileInput.addEventListener('change', function(){
-      var f = fileInput.files && fileInput.files[0];
-      b64El.value = ''; nameEl.value = ''; typeEl.value = '';
-      setStatus('');
-      if (!f){ fileStatus.textContent = ''; btn.disabled = false; return; }
-      if (f.size > MAX_SIZE){
-        fileStatus.textContent = 'file size limit: 5 mb';
-        btn.disabled = true;
-      } else {
-        fileStatus.textContent = 'selected: ' + f.name + ' (' + prettyBytes(f.size) + ')';
-        btn.disabled = false;
-      }
+    fileInput.addEventListener('change',function(){
+      var f=fileInput.files&&fileInput.files[0]; b64El.value=''; nameEl.value=''; typeEl.value=''; setStatus('');
+      if(!f){ fileStatus.textContent=''; btn.disabled=false; return; }
+      if(f.size>MAX_SIZE){ fileStatus.textContent='file size limit: 5 mb'; btn.disabled=true; }
+      else { fileStatus.textContent='selected: '+f.name+' ('+prettyBytes(f.size)+')'; btn.disabled=false; }
     });
 
-    function readFileToBase64(file){
-      return new Promise(function(resolve,reject){
-        var r = new FileReader();
-        r.onload = function(){ resolve(String(r.result||'')); };
-        r.onerror = reject;
-        r.readAsDataURL(file);
-      });
-    }
+    function readFileToBase64(file){ return new Promise(function(resolve,reject){ var r=new FileReader(); r.onload=function(){resolve(String(r.result||''));}; r.onerror=reject; r.readAsDataURL(file); }); }
 
-    var reading = false;
+    var reading=false;
     form.addEventListener('submit', async function(e){
-      var f = fileInput.files && fileInput.files[0];
-      if (!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
-      if (f.size > MAX_SIZE){ e.preventDefault(); setStatus('file size limit: 5 mb'); return; }
-      if (!['image/png','image/jpeg','image/webp'].includes(f.type)){
-        e.preventDefault(); setStatus('png/jpeg/webp only'); return; }
-      var hp = document.querySelector('input[name="website"]'); if (hp && hp.value){
-        e.preventDefault(); setStatus('spam blocked.'); return; }
+      ttfEl.value = String(Math.max(0, Date.now()-t0)); // ms since page opened
+      var f=fileInput.files&&fileInput.files[0];
+      if(!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
+      if(f.size>MAX_SIZE){ e.preventDefault(); setStatus('file size limit: 5 mb'); return; }
+      if(!['image/jpeg','image/png'].includes(f.type)){ e.preventDefault(); setStatus('png/jpeg only'); return; }
+      var hp=document.querySelector('input[name="website"]'); if(hp&&hp.value){ e.preventDefault(); setStatus('spam blocked.'); return; }
 
-      if (!b64El.value && !reading) {
-        e.preventDefault();
-        reading = true;
-        btn.disabled = true; setStatus('prepping upload...');
-        try {
-          var dataUrl = await readFileToBase64(f);
-          var parts = dataUrl.split(',', 2);
-          b64El.value  = parts[1] || '';
-          nameEl.value = f.name || 'upload';
-          typeEl.value = f.type || 'application/octet-stream';
-          reading = false;
-          btn.disabled = false; setStatus('uploading...');
+      if(!b64El.value && !reading){
+        e.preventDefault(); reading=true; btn.disabled=true; setStatus('prepping upload...');
+        try{
+          var dataUrl=await readFileToBase64(f); var parts=dataUrl.split(',',2);
+          b64El.value=parts[1]||''; nameEl.value=f.name||'upload'; typeEl.value=f.type||'application/octet-stream';
+          reading=false; btn.disabled=false; setStatus('uploading...');
           clearTimeout(uploadTimer);
-          uploadTimer = setTimeout(function(){
-            setStatus('tag submitted. it may take a few days to see tag added to the wall.');
-            btn.disabled = false;
-          }, 20000);
+          uploadTimer=setTimeout(function(){ setStatus('tag submitted. it may take a few days to see tag added to the wall.'); btn.disabled=false; }, 20000);
           form.submit();
-        } catch (err) {
-          reading = false; btn.disabled = false; setStatus('failed to read file.');
-        }
+        }catch(err){ reading=false; btn.disabled=false; setStatus('failed to read file.'); }
       } else {
         setStatus('uploading...');
         clearTimeout(uploadTimer);
-        uploadTimer = setTimeout(function(){
-          setStatus('tag submitted. it may take a few days to see tag added to the wall.');
-          btn.disabled = false;
-        }, 20000);
+        uploadTimer=setTimeout(function(){ setStatus('tag submitted. it may take a few days to see tag added to the wall.'); btn.disabled=false; }, 20000);
       }
     });
 
-    // postMessage from Apps Script
-    window.addEventListener('message', function(e){
-      var okOrigin =
-        /^https:\/\/script\.google\.com$/.test(e.origin) ||
-        /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
-      if (!okOrigin) return;
-
-      var d = e.data || {};
-      if (d.source !== 'tags-webapp') return;
-
-      clearTimeout(uploadTimer);
-      btn.disabled = false;
-
-      if (d.ok) {
+    window.addEventListener('message',function(e){
+      var okOrigin=/^https:\/\/script\.google\.com$/.test(e.origin)||/^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
+      if(!okOrigin) return;
+      var d=e.data||{}; if(d.source!=='tags-webapp') return;
+      clearTimeout(uploadTimer); btn.disabled=false;
+      if(d.ok){
         setStatus('tag submitted. it may take a few days to see tag added to the wall.');
-        form.reset();
-        fileStatus.textContent = '';
-        // reset typed placeholders
+        form.reset(); fileStatus.textContent='';
         ['title','city','country'].forEach(function(fld){
-          var line = document.querySelector('.line[data-field="' + fld + '"]');
-          var typed = line && line.querySelector('.typed');
-          var ph = line && line.getAttribute('data-ph');
-          if (typed && ph){ typed.textContent = ph; typed.classList.add('ph'); }
+          var line=document.querySelector('.line[data-field="'+fld+'"]');
+          var typed=line&&line.querySelector('.typed'); var ph=line&&line.getAttribute('data-ph');
+          if(typed&&ph){ typed.textContent=ph; typed.classList.add('ph'); }
         });
       } else {
         setStatus(d.error ? String(d.error).toLowerCase() : 'upload failed.');
