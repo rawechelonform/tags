@@ -32,11 +32,10 @@
       <span class="pill" id="showAction"></span>
     </h1>
 
-    <!-- hidden iframe target so the page doesn't navigate away -->
     <iframe name="upload_iframe" id="upload_iframe"></iframe>
 
     <form id="tags_form"
-      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
+      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec".replace("Tn","")
       method="POST" enctype="multipart/form-data" target="upload_iframe" novalidate>
 
       <fieldset>
@@ -45,7 +44,7 @@
           <input id="sticker" type="file" name="sticker" accept=".jpg,.jpeg,.png" required>
           <span id="fileMsg" class="help"></span>
         </div>
-        <div class="help">Only JPEG/PNG, max <strong>500 KB</strong>.</div>
+        <div class="help">Only JPEG/PNG, max <strong>500 KB</strong>. If larger, we’ll auto-optimize.</div>
       </fieldset>
 
       <fieldset>
@@ -59,14 +58,14 @@
         <legend>Diagnostics</legend>
         <label><input type="checkbox" id="vtOff"> Bypass VirusTotal (vt=off) — for testing only</label>
         <label><input type="checkbox" id="diagOn"> Diag mode (early echo)</label>
-        <div class="help">Turn these on to isolate issues. Normally, leave them off.</div>
+        <div class="help">Use these to isolate issues. Normally, leave off.</div>
       </fieldset>
 
       <!-- bot + diagnostics + base64 hidden fields -->
-      <input type="hidden" name="website" value="">            <!-- honeypot -->
-      <input type="hidden" name="ttf_ms" id="ttf_ms" value=""> <!-- time-to-fill -->
-      <input type="hidden" name="vt" id="vt" value="">         <!-- set to 'off' when vtOff is checked -->
-      <input type="hidden" name="diag" id="diag" value="">     <!-- set to '1' when diagOn is checked -->
+      <input type="hidden" name="website" value="">
+      <input type="hidden" name="ttf_ms" id="ttf_ms" value="">
+      <input type="hidden" name="vt" id="vt" value="">
+      <input type="hidden" name="diag" id="diag" value="">
 
       <input type="hidden" name="sticker_b64" id="sticker_b64">
       <input type="hidden" name="sticker_name" id="sticker_name">
@@ -78,7 +77,6 @@
       </div>
     </form>
 
-    <!-- RESULT / REQUEST PANEL -->
     <fieldset>
       <legend>Result</legend>
       <pre id="result">— waiting —</pre>
@@ -90,8 +88,8 @@
     </fieldset>
 
     <fieldset>
-      <legend>Raw iframe response (from Apps Script)</legend>
-      <div class="help">This is the tiny HTML your script returns into the hidden iframe and then postMessages back.</div>
+      <legend>Notes</legend>
+      <div class="help">When a file exceeds 500 KB, this page downsizes & re-encodes to JPEG to meet the cap, then submits via base64. We blank the file field’s name so the server uses the base64 path.</div>
     </fieldset>
   </div>
 
@@ -112,117 +110,119 @@
       var ttfField = document.getElementById('ttf_ms');
       var submitBtn = document.getElementById('submitBtn');
 
-      // show the current form action for sanity
       showAction.textContent = form.action;
-
-      // mark when the user landed (for ttf_ms)
       var t0 = Date.now();
 
-      // Handle toggle checkboxes -> hidden fields
-      function syncToggles(){
-        vtField.value = vtOff.checked ? 'off' : '';
-        diagField.value = diagOn.checked ? '1' : '';
-      }
+      function syncToggles(){ vtField.value = vtOff.checked ? 'off' : ''; diagField.value = diagOn.checked ? '1' : ''; }
       vtOff.addEventListener('change', syncToggles);
       diagOn.addEventListener('change', syncToggles);
       syncToggles();
 
-      // Pretty file size
-      function prettyBytes(n){
-        if (n == null) return '';
-        var u=['B','KB','MB','GB']; var i=0, v=n;
-        while (v>=1024 && i<u.length-1){ v/=1024; i++; }
-        return (i ? v.toFixed(1) : v.toFixed(0)) + ' ' + u[i];
-      }
+      function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB'],i=0,v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
 
-      // show selection + enforce 500 KB cap + jpeg/png only
       fileInput.addEventListener('change', function(){
         var f = fileInput.files && fileInput.files[0];
         if (!f){ fileMsg.textContent = ''; return; }
-        // type gate
         var okType = (f.type === 'image/jpeg' || f.type === 'image/png');
-        if (!okType){
-          fileMsg.innerHTML = '<span class="err">png/jpeg only</span>';
-          return;
-        }
-        // size gate
+        if (!okType){ fileMsg.innerHTML = '<span class="err">png/jpeg only</span>'; return; }
         if (f.size > 500*1024){
-          fileMsg.innerHTML = '<span class="err">file size limit: 500 KB</span>';
-          return;
+          fileMsg.innerHTML = 'selected: ' + f.name + ' (' + prettyBytes(f.size) + ') — will be optimized to ≤ 500 KB';
+        } else {
+          fileMsg.textContent = 'selected: ' + f.name + ' (' + prettyBytes(f.size) + ')';
         }
-        fileMsg.textContent = 'selected: ' + f.name + ' (' + prettyBytes(f.size) + ')';
       });
 
-      // base64 helper
-      function readFileToBase64(file){
-        return new Promise(function(resolve, reject){
-          var r = new FileReader();
-          r.onload = function(){ resolve(String(r.result||'')); };
-          r.onerror = reject;
-          r.readAsDataURL(file);
+      // helpers: base64 + image compression
+      function fileToDataURL(file){
+        return new Promise(function(resolve,reject){
+          var r=new FileReader(); r.onload=function(){resolve(String(r.result||''));}; r.onerror=reject; r.readAsDataURL(file);
         });
       }
+      function loadImage(url){ return new Promise(function(res,rej){ var img=new Image(); img.onload=function(){res(img)}; img.onerror=rej; img.src=url; }); }
+      function b64Size(dataUrl){
+        var i=dataUrl.indexOf('base64,'); if(i<0) return 0;
+        var b64=dataUrl.slice(i+7); var pad=(/==?$/.exec(b64)||[''])[0].length;
+        return Math.floor(b64.length*3/4)-pad;
+      }
+      async function downscaleToCap(file, capBytes, opts){
+        opts=opts||{}; var maxDim=opts.maxDim||1600; var bg=opts.background||'#000';
+        var src=await fileToDataURL(file); var img=await loadImage(src);
+        var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+        var best=null, tw=w, th=h, cv, cx;
 
-      // before submit: ttf, validate, fill base64 fallback
+        for (var round=0; round<3; round++){
+          var scale=Math.min(1, maxDim/Math.max(w,h));
+          tw=Math.max(1,Math.round(w*scale)); th=Math.max(1,Math.round(h*scale));
+          cv=document.createElement('canvas'); cv.width=tw; cv.height=th;
+          cx=cv.getContext('2d'); cx.fillStyle=bg; cx.fillRect(0,0,tw,th); cx.drawImage(img,0,0,tw,th);
+
+          var lo=0.5, hi=0.95, bestLocal=null;
+          for (var i=0;i<8;i++){
+            var q=(lo+hi)/2;
+            var data=cv.toDataURL('image/jpeg', q);
+            var sz=b64Size(data);
+            if (sz<=capBytes){ bestLocal={data:data,size:sz,q:q,w:tw,h:th}; lo=q; } else { hi=q; }
+          }
+          if (bestLocal && bestLocal.size<=capBytes){ best=bestLocal; break; }
+          maxDim=Math.max(640, Math.floor(maxDim*0.8));
+        }
+        if (!best){
+          var data=cv.toDataURL('image/jpeg', 0.4);
+          best={data:data,size:b64Size(data),q:0.4,w:cv.width,h:cv.height};
+        }
+        return best;
+      }
+
       form.addEventListener('submit', async function(ev){
-        // set time-to-fill
         ttfField.value = String(Date.now() - t0);
 
         var f = fileInput.files && fileInput.files[0];
-        if (!f){
-          ev.preventDefault();
-          statusEl.innerHTML = '<span class="err">no image selected</span>';
-          return;
-        }
-        if (!(f.type === 'image/jpeg' || f.type === 'image/png')){
-          ev.preventDefault();
-          statusEl.innerHTML = '<span class="err">png/jpeg only</span>';
-          return;
-        }
-        if (f.size > 500*1024){
-          ev.preventDefault();
-          statusEl.innerHTML = '<span class="err">file size limit: 500 KB</span>';
-          return;
-        }
+        if (!f){ ev.preventDefault(); statusEl.innerHTML = '<span class="err">no image selected</span>'; return; }
+        if (!(f.type === 'image/jpeg' || f.type === 'image/png')){ ev.preventDefault(); statusEl.innerHTML = '<span class="err">png/jpeg only</span>'; return; }
 
-        // Fill base64 fallback so the server can use it when e.files is empty
-        try{
-          var dataUrl = await readFileToBase64(f);
+        ev.preventDefault(); // manual submit
+        submitBtn.disabled = true;
+        statusEl.textContent = (f.size>500*1024) ? 'optimizing image…' : 'prepping upload…';
+
+        try {
+          var useCompressed=false, dataUrl='', outName=f.name||'upload';
+          if (f.size > 500*1024){
+            var best = await downscaleToCap(f, 500*1024, {maxDim:1600, background:'#000'});
+            dataUrl = best.data; useCompressed=true;
+            outName = outName.replace(/\.[a-z0-9]+$/i,'') + '.jpg';
+            statusEl.textContent = 'optimized to ~' + prettyBytes(best.size) + ' ('+best.w+'×'+best.h+' @ q≈'+best.q.toFixed(2)+'), uploading…';
+          } else {
+            dataUrl = await fileToDataURL(f);
+            statusEl.textContent = 'uploading…';
+          }
+
           var parts = dataUrl.split(',', 2);
           document.getElementById('sticker_b64').value = parts[1] || '';
-          document.getElementById('sticker_name').value = f.name || 'upload';
-          document.getElementById('sticker_type').value = f.type || 'application/octet-stream';
-        }catch(e){
-          ev.preventDefault();
-          statusEl.innerHTML = '<span class="err">failed to read file</span>';
-          return;
-        }
+          document.getElementById('sticker_name').value = outName;
+          document.getElementById('sticker_type').value = 'image/jpeg';
 
-        // Show what we’re sending (FormData), elide huge base64
-        try {
-          var fd = new FormData(form), rows = [];
-          fd.forEach(function(v,k){
-            if (k === 'sticker_b64'){
-              rows.push(k + ': [base64] ' + (String(v||'').length) + ' chars');
-            } else if (v && v.name){
-              rows.push(k + ': [file] ' + v.name);
-            } else {
-              rows.push(k + ': ' + v);
-            }
-          });
-          reqEl.textContent = rows.join('\n');
+          if (useCompressed){ fileInput.setAttribute('data-orig-name','sticker'); fileInput.name = ''; }
+
+          // Show payload snapshot
+          try {
+            var fd = new FormData(form), rows = [];
+            fd.forEach(function(v,k){
+              if (k === 'sticker_b64'){
+                rows.push(k + ': [base64] ' + (String(v||'').length) + ' chars' + (useCompressed?' (optimized)':''));
+              } else if (v && v.name){
+                rows.push(k + ': [file] ' + v.name);
+              } else { rows.push(k + ': ' + v); }
+            });
+            reqEl.textContent = rows.join('\n');
+          } catch(e) { reqEl.textContent = '(could not read FormData: ' + e + ')'; }
+
+          form.submit();
         } catch(e) {
-          reqEl.textContent = '(could not read FormData: ' + e + ')';
+          submitBtn.disabled = false;
+          statusEl.innerHTML = '<span class="err">failed to read/optimize image</span>';
         }
-
-        // UI feedback
-        submitBtn.disabled = true;
-        statusEl.textContent = 'uploading…';
-        resultEl.textContent = '— waiting for server —';
-        // allow the native submit to the iframe
       });
 
-      // receive postMessage from the Apps Script iframe
       window.addEventListener('message', function(e){
         var okOrigin = /^https:\/\/script\.google\.com$/.test(e.origin)
           || /^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
@@ -230,13 +230,14 @@
 
         submitBtn.disabled = false;
 
-        try {
-          resultEl.textContent = JSON.stringify(e.data, null, 2);
-        } catch (err) {
-          resultEl.textContent = 'Error parsing message: ' + err;
+        // restore file input name if blanked
+        if (!fileInput.name && fileInput.getAttribute('data-orig-name')) {
+          fileInput.name = fileInput.getAttribute('data-orig-name'); fileInput.removeAttribute('data-orig-name');
         }
 
-        // brief inline status (unmasked for testing)
+        try { resultEl.textContent = JSON.stringify(e.data, null, 2); }
+        catch (err) { resultEl.textContent = 'Error parsing message: ' + err; }
+
         if (e && e.data && e.data.ok) {
           statusEl.innerHTML = '<span class="ok">uploaded</span>';
         } else if (e && e.data && e.data.error) {
