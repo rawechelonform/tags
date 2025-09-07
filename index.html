@@ -182,8 +182,8 @@
       var f=fileInput.files&&fileInput.files[0]; b64El.value=''; nameEl.value=''; typeEl.value=''; setStatus('');
       if(!f){ fileStatus.textContent=''; btn.disabled=false; return; }
       if(!['image/jpeg','image/png'].includes(f.type)){ fileStatus.textContent='png/jpeg only'; btn.disabled=true; return; }
-      if(f.size>CAP_BYTES){ fileStatus.textContent='selected: '+f.name+' ('+prettyBytes(f.size)+') — will be optimized to ≤ 500 kb'; btn.disabled=false; }
-      else { fileStatus.textContent='selected: '+f.name+' ('+prettyBytes(f.size)+')'; btn.disabled=false; }
+      fileStatus.textContent='selected: '+f.name+' ('+prettyBytes(f.size)+')';
+      btn.disabled=false;
     });
 
     function fileToDataURL(file){
