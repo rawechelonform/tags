@@ -23,7 +23,6 @@
     .pill{ display:inline-block; border:1px solid var(--fg); padding:2px 6px; margin-left:6px; color:var(--mut); }
     .err{ color:#f66; }
     .ok{ color:#7f7; }
-    .muted{ color:var(--mut); }
   </style>
 </head>
 <body>
@@ -154,13 +153,11 @@
       fileInput.addEventListener('change', function(){
         var f = fileInput.files && fileInput.files[0];
         if (!f){ fileMsg.textContent = ''; return; }
-        // type gate
         var okType = (f.type === 'image/jpeg' || f.type === 'image/png');
         if (!okType){
           fileMsg.innerHTML = '<span class="err">png/jpeg only</span>';
           return;
         }
-        // size gate
         if (f.size > 5*1024*1024){
           fileMsg.innerHTML = '<span class="err">file size limit: 5 MB</span>';
           return;
@@ -168,28 +165,28 @@
         fileMsg.textContent = 'selected: ' + f.name + ' (' + prettyBytes(f.size) + ')';
       });
 
-      // before submit: set ttf_ms, validate, fill base64 fallback
+      // before submit: set ttf_ms, validate, fill base64, then submit
       form.addEventListener('submit', async function(ev){
+        // stop the native submit until fields are prepared
+        ev.preventDefault();
+
         ttfField.value = String(Date.now() - t0);
 
         var f = fileInput.files && fileInput.files[0];
         if (!f){
-          ev.preventDefault();
           statusEl.innerHTML = '<span class="err">no image selected</span>';
           return;
         }
         if (!(f.type === 'image/jpeg' || f.type === 'image/png')){
-          ev.preventDefault();
           statusEl.innerHTML = '<span class="err">png/jpeg only</span>';
           return;
         }
         if (f.size > 5*1024*1024){
-          ev.preventDefault();
           statusEl.innerHTML = '<span class="err">file size limit: 5 MB</span>';
           return;
         }
 
-        // Fill base64 fallback so the server can use it when e.files is empty
+        // Fill base64 fallback so server succeeds even if e.files is empty
         try{
           var dataUrl = await readFileToBase64(f);
           var parts = dataUrl.split(',', 2);
@@ -197,7 +194,6 @@
           nameEl.value = f.name || 'upload';
           typeEl.value = f.type || 'application/octet-stream';
         }catch(e){
-          ev.preventDefault();
           statusEl.innerHTML = '<span class="err">failed to read file</span>';
           return;
         }
@@ -219,11 +215,13 @@
           reqEl.textContent = '(could not read FormData: ' + e + ')';
         }
 
-        // UI feedback
+        // UI feedback and now actually submit
         submitBtn.disabled = true;
         statusEl.textContent = 'uploading…';
         resultEl.textContent = '— waiting for server —';
-        // allow the native submit to the iframe
+
+        // perform the real submit only after fields are filled
+        form.submit();
       });
 
       // receive postMessage from the Apps Script iframe
