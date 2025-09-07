@@ -181,10 +181,11 @@
           statusEl.innerHTML = '<span class="err">png/jpeg only</span>';
           return;
         }
-        if (f.size > 5*1024*1024){
-          statusEl.innerHTML = '<span class="err">file size limit: 5 MB</span>';
+        if (f.size > 500*1024){
+          fileMsg.innerHTML = '<span class="err">file size limit: 500 KB</span>';
           return;
         }
+
 
         // Fill base64 fallback so server succeeds even if e.files is empty
         try{
