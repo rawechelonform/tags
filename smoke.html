@@ -23,6 +23,7 @@
     .pill{ display:inline-block; border:1px solid var(--fg); padding:2px 6px; margin-left:6px; color:var(--mut); }
     .err{ color:#f66; }
     .ok{ color:#7f7; }
+    .muted{ color:var(--mut); }
   </style>
 </head>
 <body>
@@ -44,7 +45,7 @@
           <input id="sticker" type="file" name="sticker" accept=".jpg,.jpeg,.png" required>
           <span id="fileMsg" class="help"></span>
         </div>
-        <div class="help">Only JPEG/PNG, max 5 MB</div>
+        <div class="help">Only JPEG/PNG, max <strong>500 KB</strong>.</div>
       </fieldset>
 
       <fieldset>
@@ -58,16 +59,15 @@
         <legend>Diagnostics</legend>
         <label><input type="checkbox" id="vtOff"> Bypass VirusTotal (vt=off) — for testing only</label>
         <label><input type="checkbox" id="diagOn"> Diag mode (early echo)</label>
-        <div class="help">Turn these on to isolate issues. Normally, leave them off</div>
+        <div class="help">Turn these on to isolate issues. Normally, leave them off.</div>
       </fieldset>
 
-      <!-- bot + diagnostics hidden fields -->
-      <input type="hidden" name="website" value="">
-      <input type="hidden" name="ttf_ms" id="ttf_ms" value="">
-      <input type="hidden" name="vt" id="vt" value="">
-      <input type="hidden" name="diag" id="diag" value="">
+      <!-- bot + diagnostics + base64 hidden fields -->
+      <input type="hidden" name="website" value="">            <!-- honeypot -->
+      <input type="hidden" name="ttf_ms" id="ttf_ms" value=""> <!-- time-to-fill -->
+      <input type="hidden" name="vt" id="vt" value="">         <!-- set to 'off' when vtOff is checked -->
+      <input type="hidden" name="diag" id="diag" value="">     <!-- set to '1' when diagOn is checked -->
 
-      <!-- base64 fallback fields -->
       <input type="hidden" name="sticker_b64" id="sticker_b64">
       <input type="hidden" name="sticker_name" id="sticker_name">
       <input type="hidden" name="sticker_type" id="sticker_type">
@@ -78,6 +78,7 @@
       </div>
     </form>
 
+    <!-- RESULT / REQUEST PANEL -->
     <fieldset>
       <legend>Result</legend>
       <pre id="result">— waiting —</pre>
@@ -90,7 +91,7 @@
 
     <fieldset>
       <legend>Raw iframe response (from Apps Script)</legend>
-      <div class="help">This is the tiny HTML your script returns into the hidden iframe and then postMessages back</div>
+      <div class="help">This is the tiny HTML your script returns into the hidden iframe and then postMessages back.</div>
     </fieldset>
   </div>
 
@@ -111,12 +112,7 @@
       var ttfField = document.getElementById('ttf_ms');
       var submitBtn = document.getElementById('submitBtn');
 
-      // base64 fallback fields
-      var b64El = document.getElementById('sticker_b64');
-      var nameEl = document.getElementById('sticker_name');
-      var typeEl = document.getElementById('sticker_type');
-
-      // show the current form action
+      // show the current form action for sanity
       showAction.textContent = form.action;
 
       // mark when the user landed (for ttf_ms)
@@ -139,6 +135,24 @@
         return (i ? v.toFixed(1) : v.toFixed(0)) + ' ' + u[i];
       }
 
+      // show selection + enforce 500 KB cap + jpeg/png only
+      fileInput.addEventListener('change', function(){
+        var f = fileInput.files && fileInput.files[0];
+        if (!f){ fileMsg.textContent = ''; return; }
+        // type gate
+        var okType = (f.type === 'image/jpeg' || f.type === 'image/png');
+        if (!okType){
+          fileMsg.innerHTML = '<span class="err">png/jpeg only</span>';
+          return;
+        }
+        // size gate
+        if (f.size > 500*1024){
+          fileMsg.innerHTML = '<span class="err">file size limit: 500 KB</span>';
+          return;
+        }
+        fileMsg.textContent = 'selected: ' + f.name + ' (' + prettyBytes(f.size) + ')';
+      });
+
       // base64 helper
       function readFileToBase64(file){
         return new Promise(function(resolve, reject){
@@ -149,52 +163,37 @@
         });
       }
 
-      // show selection + enforce 5 MB cap + jpeg/png only
-      fileInput.addEventListener('change', function(){
-        var f = fileInput.files && fileInput.files[0];
-        if (!f){ fileMsg.textContent = ''; return; }
-        var okType = (f.type === 'image/jpeg' || f.type === 'image/png');
-        if (!okType){
-          fileMsg.innerHTML = '<span class="err">png/jpeg only</span>';
-          return;
-        }
-        if (f.size > 5*1024*1024){
-          fileMsg.innerHTML = '<span class="err">file size limit: 5 MB</span>';
-          return;
-        }
-        fileMsg.textContent = 'selected: ' + f.name + ' (' + prettyBytes(f.size) + ')';
-      });
-
-      // before submit: set ttf_ms, validate, fill base64, then submit
+      // before submit: ttf, validate, fill base64 fallback
       form.addEventListener('submit', async function(ev){
-        // stop the native submit until fields are prepared
-        ev.preventDefault();
-
+        // set time-to-fill
         ttfField.value = String(Date.now() - t0);
 
         var f = fileInput.files && fileInput.files[0];
         if (!f){
+          ev.preventDefault();
           statusEl.innerHTML = '<span class="err">no image selected</span>';
           return;
         }
         if (!(f.type === 'image/jpeg' || f.type === 'image/png')){
+          ev.preventDefault();
           statusEl.innerHTML = '<span class="err">png/jpeg only</span>';
           return;
         }
         if (f.size > 500*1024){
-          fileMsg.innerHTML = '<span class="err">file size limit: 500 KB</span>';
+          ev.preventDefault();
+          statusEl.innerHTML = '<span class="err">file size limit: 500 KB</span>';
           return;
         }
 
-
-        // Fill base64 fallback so server succeeds even if e.files is empty
+        // Fill base64 fallback so the server can use it when e.files is empty
         try{
           var dataUrl = await readFileToBase64(f);
           var parts = dataUrl.split(',', 2);
-          b64El.value = parts[1] || '';
-          nameEl.value = f.name || 'upload';
-          typeEl.value = f.type || 'application/octet-stream';
+          document.getElementById('sticker_b64').value = parts[1] || '';
+          document.getElementById('sticker_name').value = f.name || 'upload';
+          document.getElementById('sticker_type').value = f.type || 'application/octet-stream';
         }catch(e){
+          ev.preventDefault();
           statusEl.innerHTML = '<span class="err">failed to read file</span>';
           return;
         }
@@ -216,13 +215,11 @@
           reqEl.textContent = '(could not read FormData: ' + e + ')';
         }
 
-        // UI feedback and now actually submit
+        // UI feedback
         submitBtn.disabled = true;
         statusEl.textContent = 'uploading…';
         resultEl.textContent = '— waiting for server —';
-
-        // perform the real submit only after fields are filled
-        form.submit();
+        // allow the native submit to the iframe
       });
 
       // receive postMessage from the Apps Script iframe
@@ -239,6 +236,7 @@
           resultEl.textContent = 'Error parsing message: ' + err;
         }
 
+        // brief inline status (unmasked for testing)
         if (e && e.data && e.data.ok) {
           statusEl.innerHTML = '<span class="ok">uploaded</span>';
         } else if (e && e.data && e.data.error) {
