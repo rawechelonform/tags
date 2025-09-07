@@ -161,14 +161,14 @@
     var b64El=document.getElementById('sticker_b64'), nameEl=document.getElementById('sticker_name'), typeEl=document.getElementById('sticker_type');
     var ttfEl=document.getElementById('ttf_ms'), t0=Date.now();
 
-    var MAX_SIZE=5*1024*1024, uploadTimer=null;
+    var MAX_SIZE = 500*1024;
     function setStatus(m){ statusEl.textContent=m; }
     function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB'],i=0,v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
 
     fileInput.addEventListener('change',function(){
       var f=fileInput.files&&fileInput.files[0]; b64El.value=''; nameEl.value=''; typeEl.value=''; setStatus('');
       if(!f){ fileStatus.textContent=''; btn.disabled=false; return; }
-      if(f.size>MAX_SIZE){ fileStatus.textContent='file size limit: 5 mb'; btn.disabled=true; }
+      if(f.size>MAX_SIZE){ fileStatus.textContent='file size limit: 500 kb'; btn.disabled=true; }
       else { fileStatus.textContent='selected: '+f.name+' ('+prettyBytes(f.size)+')'; btn.disabled=false; }
     });
 
