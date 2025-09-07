@@ -161,7 +161,7 @@
     var b64El=document.getElementById('sticker_b64'), nameEl=document.getElementById('sticker_name'), typeEl=document.getElementById('sticker_type');
     var ttfEl=document.getElementById('ttf_ms'), t0=Date.now();
 
-    var MAX_SIZE = 500*1024;
+    var MAX_SIZE=500*1024, uploadTimer=null; // 500 KB cap
     function setStatus(m){ statusEl.textContent=m; }
     function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB'],i=0,v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
 
@@ -169,6 +169,7 @@
       var f=fileInput.files&&fileInput.files[0]; b64El.value=''; nameEl.value=''; typeEl.value=''; setStatus('');
       if(!f){ fileStatus.textContent=''; btn.disabled=false; return; }
       if(f.size>MAX_SIZE){ fileStatus.textContent='file size limit: 500 kb'; btn.disabled=true; }
+      else if(!['image/jpeg','image/png'].includes(f.type)){ fileStatus.textContent='png/jpeg only'; btn.disabled=true; }
       else { fileStatus.textContent='selected: '+f.name+' ('+prettyBytes(f.size)+')'; btn.disabled=false; }
     });
 
@@ -179,7 +180,7 @@
       ttfEl.value = String(Math.max(0, Date.now()-t0)); // ms since page opened
       var f=fileInput.files&&fileInput.files[0];
       if(!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
-      if(f.size>MAX_SIZE){ e.preventDefault(); setStatus('file size limit: 5 mb'); return; }
+      if(f.size>MAX_SIZE){ e.preventDefault(); setStatus('file size limit: 500 kb'); return; }
       if(!['image/jpeg','image/png'].includes(f.type)){ e.preventDefault(); setStatus('png/jpeg only'); return; }
       var hp=document.querySelector('input[name="website"]'); if(hp&&hp.value){ e.preventDefault(); setStatus('spam blocked.'); return; }
 
@@ -190,6 +191,7 @@
           b64El.value=parts[1]||''; nameEl.value=f.name||'upload'; typeEl.value=f.type||'application/octet-stream';
           reading=false; btn.disabled=false; setStatus('uploading...');
           clearTimeout(uploadTimer);
+          // fallback status if server is slow
           uploadTimer=setTimeout(function(){ setStatus('tag submitted. it may take a few days to see tag added to the wall.'); btn.disabled=false; }, 20000);
           form.submit();
         }catch(err){ reading=false; btn.disabled=false; setStatus('failed to read file.'); }
@@ -200,11 +202,15 @@
       }
     });
 
+    // Friendlier, virus-agnostic status
     window.addEventListener('message',function(e){
       var okOrigin=/^https:\/\/script\.google\.com$/.test(e.origin)||/^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
       if(!okOrigin) return;
       var d=e.data||{}; if(d.source!=='tags-webapp') return;
       clearTimeout(uploadTimer); btn.disabled=false;
+
+      function isVirusRelated(err){ return /virus|scanner|vt|timed\s*out/i.test(String(err||'')); }
+
       if(d.ok){
         setStatus('tag submitted. it may take a few days to see tag added to the wall.');
         form.reset(); fileStatus.textContent='';
@@ -214,7 +220,13 @@
           if(typed&&ph){ typed.textContent=ph; typed.classList.add('ph'); }
         });
       } else {
-        setStatus(d.error ? String(d.error).toLowerCase() : 'upload failed.');
+        // mask any virus-related errors as success
+        if(isVirusRelated(d.error)){
+          setStatus('tag submitted. it may take a few days to see tag added to the wall.');
+          form.reset(); fileStatus.textContent='';
+        } else {
+          setStatus(d.error ? String(d.error).toLowerCase() : 'upload failed.');
+        }
       }
     });
   </script>
