@@ -45,7 +45,7 @@
           <input id="sticker" type="file" name="sticker" accept=".jpg,.jpeg,.png" required>
           <span id="fileMsg" class="help"></span>
         </div>
-        <div class="help">Only JPEG/PNG, max 5 MB.</div>
+        <div class="help">Only JPEG/PNG, max 5 MB</div>
       </fieldset>
 
       <fieldset>
@@ -59,14 +59,19 @@
         <legend>Diagnostics</legend>
         <label><input type="checkbox" id="vtOff"> Bypass VirusTotal (vt=off) — for testing only</label>
         <label><input type="checkbox" id="diagOn"> Diag mode (early echo)</label>
-        <div class="help">Turn these on to isolate issues. Normally, leave them off.</div>
+        <div class="help">Turn these on to isolate issues. Normally, leave them off</div>
       </fieldset>
 
       <!-- bot + diagnostics hidden fields -->
-      <input type="hidden" name="website" value="">            <!-- honeypot -->
-      <input type="hidden" name="ttf_ms" id="ttf_ms" value=""> <!-- time-to-fill -->
-      <input type="hidden" name="vt" id="vt" value="">         <!-- set to 'off' when vtOff is checked -->
-      <input type="hidden" name="diag" id="diag" value="">     <!-- set to '1' when diagOn is checked -->
+      <input type="hidden" name="website" value="">
+      <input type="hidden" name="ttf_ms" id="ttf_ms" value="">
+      <input type="hidden" name="vt" id="vt" value="">
+      <input type="hidden" name="diag" id="diag" value="">
+
+      <!-- base64 fallback fields -->
+      <input type="hidden" name="sticker_b64" id="sticker_b64">
+      <input type="hidden" name="sticker_name" id="sticker_name">
+      <input type="hidden" name="sticker_type" id="sticker_type">
 
       <div class="row">
         <button type="submit" id="submitBtn">Upload</button>
@@ -74,7 +79,6 @@
       </div>
     </form>
 
-    <!-- RESULT / REQUEST PANEL -->
     <fieldset>
       <legend>Result</legend>
       <pre id="result">— waiting —</pre>
@@ -87,7 +91,7 @@
 
     <fieldset>
       <legend>Raw iframe response (from Apps Script)</legend>
-      <div class="help">This is the tiny HTML your script returns into the hidden iframe and then postMessages back.</div>
+      <div class="help">This is the tiny HTML your script returns into the hidden iframe and then postMessages back</div>
     </fieldset>
   </div>
 
@@ -108,7 +112,12 @@
       var ttfField = document.getElementById('ttf_ms');
       var submitBtn = document.getElementById('submitBtn');
 
-      // show the current form action for sanity
+      // base64 fallback fields
+      var b64El = document.getElementById('sticker_b64');
+      var nameEl = document.getElementById('sticker_name');
+      var typeEl = document.getElementById('sticker_type');
+
+      // show the current form action
       showAction.textContent = form.action;
 
       // mark when the user landed (for ttf_ms)
@@ -131,6 +140,16 @@
         return (i ? v.toFixed(1) : v.toFixed(0)) + ' ' + u[i];
       }
 
+      // base64 helper
+      function readFileToBase64(file){
+        return new Promise(function(resolve, reject){
+          var r = new FileReader();
+          r.onload = function(){ resolve(String(r.result||'')); };
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+      }
+
       // show selection + enforce 5 MB cap + jpeg/png only
       fileInput.addEventListener('change', function(){
         var f = fileInput.files && fileInput.files[0];
@@ -149,9 +168,8 @@
         fileMsg.textContent = 'selected: ' + f.name + ' (' + prettyBytes(f.size) + ')';
       });
 
-      // before submit: set ttf_ms and validate locally
-      form.addEventListener('submit', function(ev){
-        // set time-to-fill
+      // before submit: set ttf_ms, validate, fill base64 fallback
+      form.addEventListener('submit', async function(ev){
         ttfField.value = String(Date.now() - t0);
 
         var f = fileInput.files && fileInput.files[0];
@@ -171,12 +189,30 @@
           return;
         }
 
-        // show what we’re sending (FormData)
+        // Fill base64 fallback so the server can use it when e.files is empty
+        try{
+          var dataUrl = await readFileToBase64(f);
+          var parts = dataUrl.split(',', 2);
+          b64El.value = parts[1] || '';
+          nameEl.value = f.name || 'upload';
+          typeEl.value = f.type || 'application/octet-stream';
+        }catch(e){
+          ev.preventDefault();
+          statusEl.innerHTML = '<span class="err">failed to read file</span>';
+          return;
+        }
+
+        // Show what we’re sending (FormData), elide huge base64
         try {
           var fd = new FormData(form), rows = [];
           fd.forEach(function(v,k){
-            if (v && v.name) v = '[file] ' + v.name;
-            rows.push(k + ': ' + v);
+            if (k === 'sticker_b64'){
+              rows.push(k + ': [base64] ' + (String(v||'').length) + ' chars');
+            } else if (v && v.name){
+              rows.push(k + ': [file] ' + v.name);
+            } else {
+              rows.push(k + ': ' + v);
+            }
           });
           reqEl.textContent = rows.join('\n');
         } catch(e) {
@@ -187,6 +223,7 @@
         submitBtn.disabled = true;
         statusEl.textContent = 'uploading…';
         resultEl.textContent = '— waiting for server —';
+        // allow the native submit to the iframe
       });
 
       // receive postMessage from the Apps Script iframe
@@ -203,7 +240,6 @@
           resultEl.textContent = 'Error parsing message: ' + err;
         }
 
-        // brief inline status
         if (e && e.data && e.data.ok) {
           statusEl.innerHTML = '<span class="ok">uploaded</span>';
         } else if (e && e.data && e.data.error) {
