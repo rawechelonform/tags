@@ -2,21 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <!-- make the very top pure black and cover notches/safe-areas -->
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
   <title>TAG THE WALL</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
   <link rel="icon" href="data:,">
   <style>
     :root{
       --bg:#000; --crt:#00ff00; --crt-dim:rgba(0,255,0,.55); --crt-soft: rgba(0,255,0,.18);
       --fs:20px; --ls:.08em; --lh:1.3;
-      --stage-offset:56px; --wrap-w:94vw; --max-w:1600px; --left-offset:1in;
+      --stage-offset:56px; /* set to 0px if you want header flush to the top */
+      --wrap-w:94vw; --max-w:1600px; --left-offset:1in;
       --sep-title:24px; --between-q:18px; --row-gap:12px; --caret-gap:1ch; --btn-w:240px;
     }
     *{ box-sizing:border-box }
-    html,body{ height:100%; margin:0 }
+    html,body{
+      height:100%; margin:0; background:#000;           /* force pure black root */
+      overscroll-behavior:none;                          /* avoid gray rubber-band areas */
+    }
+    /* fill iOS top safe area with black */
+    body::before{
+      content:""; position:fixed; left:0; right:0; top:0;
+      height:env(safe-area-inset-top, 0px); background:#000;
+      pointer-events:none; z-index:9999;
+    }
+
     body{
-      background:var(--bg); color:var(--crt);
+      color:var(--crt);
       font-family:'DotGothic16',system-ui,monospace;
       text-transform:uppercase; letter-spacing:var(--ls); font-size:var(--fs);
       line-height:calc(var(--lh)*1em);
@@ -25,8 +38,7 @@
     .hdr{ display:flex; align-items:baseline; justify-content:space-between; }
     h1{ margin:0; font-weight:700; font-size:var(--fs); line-height:calc(var(--lh)*1em); }
     .back-link{ color:var(--crt); text-decoration:none; font-weight:700; }
-    .back-link .label{ text-decoration:none; }
-    .back-link .bracket{ text-decoration:none; }
+    .back-link .label,.back-link .bracket{ text-decoration:none; }
     .back-link:hover .label{ text-decoration:underline; }
     .spacer-title{ height: var(--sep-title); }
 
@@ -187,7 +199,6 @@
     }
     async function downscaleToCap(file, capBytes, opts){
       opts=opts||{}; var maxDim=opts.maxDim||1600; var bg=opts.background||'#000';
-      // decode + initial draw
       var src=await fileToDataURL(file); var img=await loadImage(src);
       var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
       var best=null;
@@ -197,10 +208,9 @@
         var tw=Math.max(1,Math.round(w*scale)), th=Math.max(1,Math.round(h*scale));
         var cv=document.createElement('canvas'); cv.width=tw; cv.height=th;
         var cx=cv.getContext('2d');
-        cx.fillStyle=bg; cx.fillRect(0,0,tw,th);
+        cx.fillStyle=bg; cx.fillRect(0,0,tw,th);          // matte fill (black) for PNG transparency
         cx.drawImage(img,0,0,tw,th);
 
-        // binary search JPEG quality for ≤ cap
         var lo=0.5, hi=0.95, bestLocal=null;
         for (var i=0;i<8;i++){
           var q=(lo+hi)/2;
@@ -209,11 +219,9 @@
           if (sz<=capBytes){ bestLocal={data:data,size:sz,q:q,w:tw,h:th}; lo=q; } else { hi=q; }
         }
         if (bestLocal && bestLocal.size<=capBytes){ best=bestLocal; break; }
-        // shrink dimensions further and retry
         maxDim=Math.max(640, Math.floor(maxDim*0.8));
       }
       if (!best){
-        // last resort: very low quality
         var data=cv.toDataURL('image/jpeg', 0.4);
         best={data:data,size:b64Size(data),q:0.4,w:cv.width,h:cv.height};
       }
@@ -228,8 +236,7 @@
       if(!['image/jpeg','image/png'].includes(f.type)){ e.preventDefault(); setStatus('png/jpeg only'); return; }
       var hp=document.querySelector('input[name="website"]'); if(hp&&hp.value){ e.preventDefault(); setStatus('spam blocked.'); return; }
 
-      e.preventDefault(); // we'll submit manually
-
+      e.preventDefault(); // submit manually after (optional) compression
       btn.disabled=true;
       setStatus(f.size>CAP_BYTES ? 'optimizing image…' : 'prepping upload…');
 
@@ -238,7 +245,6 @@
         if (f.size>CAP_BYTES){
           var best=await downscaleToCap(f, CAP_BYTES, {maxDim:1600, background:'#000'});
           dataUrl=best.data; useCompressed=true;
-          // force .jpg extension after compression
           outName=outName.replace(/\.[a-z0-9]+$/i,'') + '.jpg';
         } else {
           dataUrl=await fileToDataURL(f);
@@ -247,9 +253,9 @@
         var parts=dataUrl.split(',',2);
         b64El.value=parts[1]||'';
         nameEl.value=outName;
-        typeEl.value='image/jpeg'; // server sniffs anyway; compressed path is jpeg, small-original is ok too
+        typeEl.value=useCompressed ? 'image/jpeg' : (f.type || 'application/octet-stream');
 
-        // If we compressed, make sure server uses the base64 (not the original file)
+        // if compressed, blank file field so server uses base64 path
         if (useCompressed){ fileInput.setAttribute('data-orig-name','sticker'); fileInput.name=''; }
 
         setStatus('uploading...');
@@ -274,6 +280,8 @@
         fileInput.name = fileInput.getAttribute('data-orig-name'); fileInput.removeAttribute('data-orig-name');
       }
 
+      function isVirusRelated(err){ return /virus|scanner|vt|timed\s*out/i.test(String(err||'')); }
+
       if(d.ok){
         setStatus('tag submitted. it may take a few days to see tag added to the wall.');
         form.reset(); fileStatus.textContent='';
@@ -283,8 +291,13 @@
           if(typed&&ph){ typed.textContent=ph; typed.classList.add('ph'); }
         });
       } else {
-        // show generic errors; never mention scanning
-        setStatus(d.error ? String(d.error).toLowerCase() : 'upload failed.');
+        // mask any virus-related errors as success; show real validation errors
+        if(isVirusRelated(d.error)){
+          setStatus('tag submitted. it may take a few days to see tag added to the wall.');
+          form.reset(); fileStatus.textContent='';
+        } else {
+          setStatus(d.error ? String(d.error).toLowerCase() : 'upload failed.');
+        }
       }
     });
   </script>
