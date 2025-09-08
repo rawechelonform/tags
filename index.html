@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <!-- make the very top pure black and cover notches/safe-areas -->
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <title>TAG THE WALL</title>
@@ -10,40 +9,38 @@
   <link rel="icon" href="data:,">
   <style>
     :root{
-      --bg:#000; --crt:#00ff00; --crt-dim:rgba(0,255,0,.55); --crt-soft: rgba(0,255,0,.18);
-      --fs:20px; --ls:.08em; --lh:1.3;
-      --stage-offset:56px; /* set to 0px if you want header flush to the top */
-      --wrap-w:94vw; --max-w:1600px; --left-offset:1in;
+      --bg:#000;
+      --crt:#00ff00;
+      --crt-dim:rgba(0,255,0,.55);
+      --ph:#7a6f4a;                 /* placeholder color: muted grey/brown */
+      --crt-soft: rgba(0,255,0,.18);
+      --fs:20px;                    /* base font (overridden by clamp below) */
+      --ls:.08em; --lh:1.3;
+      --stage-offset:56px; --wrap-w:94vw; --max-w:1600px; --left-offset:1in;
       --sep-title:24px; --between-q:18px; --row-gap:12px; --caret-gap:1ch; --btn-w:240px;
     }
     *{ box-sizing:border-box }
     html,body{
-      height:100%; margin:0; background: var(--bg);           /* force pure black root */
-      overscroll-behavior:none;                          /* avoid gray rubber-band areas */
-    }
-    /* fill iOS top safe area with black */
-    body::before{
-      content:""; position:fixed; left:0; right:0; top:0;
-      height:env(safe-area-inset-top, 0px); background:#000;
-      pointer-events:none; z-index:9999;
-    }
-
-    body{
-      color:var(--crt);
+      height:100%; margin:0; background:var(--bg) !important; color:var(--crt);
       font-family:'DotGothic16',system-ui,monospace;
       text-transform:uppercase; letter-spacing:var(--ls); font-size:var(--fs);
       line-height:calc(var(--lh)*1em);
     }
+
+    /* fluid base font so text scales desktop→mobile (can be overridden below) */
+    :root{ --fs: clamp(14px, 1.8vw, 20px); }
+
     .wrap{
-      width: var(--wrap-w);
-      max-width: var(--max-w);
-      margin: 0 auto 32px;                                  /* no top margin */
-      padding: var(--stage-offset) calc(12px + var(--left-offset)) 0; /* top padding instead */
+      width:var(--wrap-w); max-width:var(--max-w);
+      margin:0 auto 32px;
+      padding:var(--stage-offset) calc(12px + var(--left-offset)) 0;
     }
+
     .hdr{ display:flex; align-items:baseline; justify-content:space-between; }
     h1{ margin:0; font-weight:700; font-size:var(--fs); line-height:calc(var(--lh)*1em); }
     .back-link{ color:var(--crt); text-decoration:none; font-weight:700; }
-    .back-link .label,.back-link .bracket{ text-decoration:none; }
+    .back-link .label{ text-decoration:none; }
+    .back-link .bracket{ text-decoration:none; }
     .back-link:hover .label{ text-decoration:underline; }
     .spacer-title{ height: var(--sep-title); }
 
@@ -53,7 +50,7 @@
     .no-caret .caret{ display:none; }
 
     .typed{ min-height:calc(var(--lh)*1em); line-height:calc(var(--lh)*1em); white-space:pre-wrap; color:var(--crt); }
-    .typed.ph{ color:var(--crt-dim); }
+    .typed.ph{ color:var(--ph); } /* dulled placeholder color */
 
     .cursor-block{ display:inline-block; width:1.1ch; height:1em; background:var(--crt); color:#000;
                    transform: translateY(calc((var(--lh) - 1) * 0.5em));
@@ -71,6 +68,26 @@
 
     .hid-input{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; border:0; outline:none; background:transparent; color:transparent; caret-color:transparent; text-transform:lowercase; }
     .hp{ position:absolute; left:-9999px; top:-9999px; }
+
+    /* just in case any visible input placeholders appear later */
+    ::placeholder{ color:var(--ph); opacity:0.9; text-transform:uppercase; }
+
+    /* Mobile tweaks */
+    @media (max-width: 600px){
+      :root{
+        --left-offset: 0px;
+        --wrap-w: 100vw;
+        --fs: 16px;           /* comfortable phone size */
+        --caret-gap: 0.5ch;
+        --stage-offset: 40px;
+      }
+      .wrap{ padding-left:12px; padding-right:12px; }
+      .file-status{ white-space:normal; display:block; margin-left:0; margin-top:8px; }
+      .line{ gap:0.5ch; align-items:center; }
+    }
+    @media (max-width: 380px){
+      :root{ --fs: 15px; --stage-offset: 32px; }
+    }
   </style>
 </head>
 <body>
@@ -86,7 +103,7 @@
     <iframe name="upload_iframe" style="display:none"></iframe>
 
     <form id="tags_form"
-      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
+      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
       method="POST" enctype="multipart/form-data" target="upload_iframe" novalidate>
 
       <!-- UPLOAD -->
@@ -146,7 +163,7 @@
   </div>
 
   <script>
-    /* caret-following renderer */
+    /* ---------- caret-following renderer ---------- */
     function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>c==='&'?'&amp;':c==='<'?'&lt;':c==='>'?'&gt;':c==='"'?'&quot;':'&#39;');}
     function bindTermField(field){
       var line=document.querySelector('.line[data-field="'+field+'"]'); if(!line)return;
@@ -172,121 +189,104 @@
     }
     ['title','city','country'].forEach(bindTermField);
 
-    /* ---------- Uploader with auto-shrink to ≤500 KB ---------- */
+    /* ---------- upload + base64 fallback + silent 500KB optimizer ---------- */
     var form=document.getElementById('tags_form'), btn=document.getElementById('submitBtn'), statusEl=document.getElementById('status');
     var fileInput=document.getElementById('sticker'), fileStatus=document.getElementById('fileStatus');
     var b64El=document.getElementById('sticker_b64'), nameEl=document.getElementById('sticker_name'), typeEl=document.getElementById('sticker_type');
     var ttfEl=document.getElementById('ttf_ms'), t0=Date.now();
 
-    var CAP_BYTES=500*1024, uploadTimer=null;
+    var CAP_BYTES=500*1024;         // keep in sync with server
+    var MAX_READ_BYTES=25*1024*1024;// hard stop to avoid absurdly large files in browser
+    var uploadTimer=null;
 
-    function setStatus(m){ statusEl.textContent=String(m||''); }
+    function setStatus(m){ statusEl.textContent=m; }
     function prettyBytes(n){ if(n==null)return''; var u=['B','KB','MB','GB'],i=0,v=n; while(v>=1024&&i<u.length-1){v/=1024;i++;} return (i?v.toFixed(1):v.toFixed(0))+' '+u[i]; }
 
     fileInput.addEventListener('change',function(){
       var f=fileInput.files&&fileInput.files[0]; b64El.value=''; nameEl.value=''; typeEl.value=''; setStatus('');
       if(!f){ fileStatus.textContent=''; btn.disabled=false; return; }
       if(!['image/jpeg','image/png'].includes(f.type)){ fileStatus.textContent='png/jpeg only'; btn.disabled=true; return; }
+      if(f.size>MAX_READ_BYTES){ fileStatus.textContent='file too large to process in browser'; btn.disabled=true; return; }
       fileStatus.textContent='selected: '+f.name+' ('+prettyBytes(f.size)+')';
       btn.disabled=false;
     });
 
-    function fileToDataURL(file){
-      return new Promise(function(resolve,reject){
-        var r=new FileReader(); r.onload=function(){resolve(String(r.result||''));}; r.onerror=reject; r.readAsDataURL(file);
-      });
-    }
-    function loadImage(url){ return new Promise(function(res,rej){ var img=new Image(); img.onload=function(){res(img)}; img.onerror=rej; img.src=url; }); }
-    function b64Size(dataUrl){
-      var i=dataUrl.indexOf('base64,'); if(i<0) return 0;
-      var b64=dataUrl.slice(i+7); var pad=(/==?$/.exec(b64)||[''])[0].length;
-      return Math.floor(b64.length*3/4)-pad;
-    }
-    async function downscaleToCap(file, capBytes, opts){
-      opts=opts||{}; var maxDim=opts.maxDim||1600; var bg=opts.background||'#000';
-      var src=await fileToDataURL(file); var img=await loadImage(src);
-      var w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
-      var best=null;
+    function readFileToDataURL(file){ return new Promise(function(resolve,reject){ var r=new FileReader(); r.onload=function(){resolve(String(r.result||''));}; r.onerror=reject; r.readAsDataURL(file); }); }
+    function loadImage(src){ return new Promise(function(resolve,reject){ var img=new Image(); img.onload=function(){resolve(img)}; img.onerror=reject; img.src=src; }); }
 
-      for (var round=0; round<3; round++){
-        var scale=Math.min(1, maxDim/Math.max(w,h));
-        var tw=Math.max(1,Math.round(w*scale)), th=Math.max(1,Math.round(h*scale));
-        var cv=document.createElement('canvas'); cv.width=tw; cv.height=th;
-        var cx=cv.getContext('2d');
-        cx.fillStyle=bg; cx.fillRect(0,0,tw,th);          // matte fill (black) for PNG transparency
-        cx.drawImage(img,0,0,tw,th);
-
-        var lo=0.5, hi=0.95, bestLocal=null;
-        for (var i=0;i<8;i++){
-          var q=(lo+hi)/2;
-          var data=cv.toDataURL('image/jpeg', q);
-          var sz=b64Size(data);
-          if (sz<=capBytes){ bestLocal={data:data,size:sz,q:q,w:tw,h:th}; lo=q; } else { hi=q; }
-        }
-        if (bestLocal && bestLocal.size<=capBytes){ best=bestLocal; break; }
-        maxDim=Math.max(640, Math.floor(maxDim*0.8));
+    async function optimizeToCap(file){
+      // if already small JPEG, just pass through
+      if (file.type==='image/jpeg' && file.size<=CAP_BYTES){
+        var pass = await readFileToDataURL(file);
+        return { dataUrl: pass, name: file.name || 'upload.jpg', type: 'image/jpeg' };
       }
-      if (!best){
-        var data=cv.toDataURL('image/jpeg', 0.4);
-        best={data:data,size:b64Size(data),q:0.4,w:cv.width,h:cv.height};
+      // otherwise: convert/draw to canvas, JPEG with downscale and quality steps
+      var dataUrl = await readFileToDataURL(file);
+      var img = await loadImage(dataUrl);
+
+      // Scale down if overly large (cap long edge to ~2000px)
+      var MAX_DIM = 2000;
+      var scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
+      var cw = Math.max(1, Math.round(img.width*scale));
+      var ch = Math.max(1, Math.round(img.height*scale));
+
+      var canvas=document.createElement('canvas'); canvas.width=cw; canvas.height=ch;
+      var ctx=canvas.getContext('2d');
+
+      // fill black to eliminate any transparent pixels (PNG) cleanly
+      ctx.fillStyle='#000'; ctx.fillRect(0,0,cw,ch);
+      ctx.drawImage(img,0,0,cw,ch);
+
+      var quality=0.9, out, estBytes=Infinity;
+      while (quality>=0.4){
+        out = canvas.toDataURL('image/jpeg', quality);
+        // estimate payload size from base64 length
+        estBytes = Math.ceil((out.length - 'data:image/jpeg;base64,'.length)*3/4);
+        if (estBytes <= CAP_BYTES) break;
+        quality -= 0.1;
       }
-      return best;
+      var name=(file.name||'upload').replace(/\.[^.]+$/,'')+'.jpg';
+      return { dataUrl: out, name: name, type: 'image/jpeg' };
     }
 
-    var reading=false;
+    var prepping=false;
     form.addEventListener('submit', async function(e){
       ttfEl.value = String(Math.max(0, Date.now()-t0)); // ms since page opened
       var f=fileInput.files&&fileInput.files[0];
       if(!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
       if(!['image/jpeg','image/png'].includes(f.type)){ e.preventDefault(); setStatus('png/jpeg only'); return; }
       var hp=document.querySelector('input[name="website"]'); if(hp&&hp.value){ e.preventDefault(); setStatus('spam blocked.'); return; }
+      if(f.size>MAX_READ_BYTES){ e.preventDefault(); setStatus('file too large to process in browser'); return; }
 
-      e.preventDefault(); // submit manually after (optional) compression
-      btn.disabled=true;
-      setStatus(f.size>CAP_BYTES ? 'optimizing image…' : 'prepping upload…');
+      // prepare base64 (optimize silently if needed)
+      if(!b64El.value && !prepping){
+        e.preventDefault(); prepping=true; btn.disabled=true; setStatus('prepping upload...');
+        try{
+          var opt = await optimizeToCap(f);
+          b64El.value = (opt.dataUrl.split(',',2)[1]) || '';
+          nameEl.value = opt.name || (f.name||'upload');
+          typeEl.value = opt.type || 'image/jpeg';
 
-      try{
-        var useCompressed=false, dataUrl='', outName=f.name||'upload';
-        if (f.size>CAP_BYTES){
-          var best=await downscaleToCap(f, CAP_BYTES, {maxDim:1600, background:'#000'});
-          dataUrl=best.data; useCompressed=true;
-          outName=outName.replace(/\.[a-z0-9]+$/i,'') + '.jpg';
-        } else {
-          dataUrl=await fileToDataURL(f);
+          prepping=false; btn.disabled=false; setStatus('uploading...');
+          clearTimeout(uploadTimer);
+          uploadTimer=setTimeout(function(){ setStatus('tag submitted. it may take a few days to see tag added to the wall.'); btn.disabled=false; }, 20000);
+          form.submit();
+        }catch(err){
+          prepping=false; btn.disabled=false; setStatus('failed to process image.');
         }
-
-        var parts=dataUrl.split(',',2);
-        b64El.value=parts[1]||'';
-        nameEl.value=outName;
-        typeEl.value=useCompressed ? 'image/jpeg' : (f.type || 'application/octet-stream');
-
-        // if compressed, blank file field so server uses base64 path
-        if (useCompressed){ fileInput.setAttribute('data-orig-name','sticker'); fileInput.name=''; }
-
+      } else {
         setStatus('uploading...');
         clearTimeout(uploadTimer);
         uploadTimer=setTimeout(function(){ setStatus('tag submitted. it may take a few days to see tag added to the wall.'); btn.disabled=false; }, 20000);
-        form.submit();
-
-      }catch(err){
-        btn.disabled=false; setStatus('failed to read file.');
       }
     });
 
-    // Friendly, virus-agnostic status
+    // receive postMessage from the Apps Script iframe
     window.addEventListener('message',function(e){
       var okOrigin=/^https:\/\/script\.google\.com$/.test(e.origin)||/^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
       if(!okOrigin) return;
       var d=e.data||{}; if(d.source!=='tags-webapp') return;
       clearTimeout(uploadTimer); btn.disabled=false;
-
-      // restore file input name if we blanked it
-      if (!fileInput.name && fileInput.getAttribute('data-orig-name')) {
-        fileInput.name = fileInput.getAttribute('data-orig-name'); fileInput.removeAttribute('data-orig-name');
-      }
-
-      function isVirusRelated(err){ return /virus|scanner|vt|timed\s*out/i.test(String(err||'')); }
-
       if(d.ok){
         setStatus('tag submitted. it may take a few days to see tag added to the wall.');
         form.reset(); fileStatus.textContent='';
@@ -296,13 +296,7 @@
           if(typed&&ph){ typed.textContent=ph; typed.classList.add('ph'); }
         });
       } else {
-        // mask any virus-related errors as success; show real validation errors
-        if(isVirusRelated(d.error)){
-          setStatus('tag submitted. it may take a few days to see tag added to the wall.');
-          form.reset(); fileStatus.textContent='';
-        } else {
-          setStatus(d.error ? String(d.error).toLowerCase() : 'upload failed.');
-        }
+        setStatus(d.error ? String(d.error).toLowerCase() : 'upload failed.');
       }
     });
   </script>
