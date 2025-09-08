@@ -8,17 +8,23 @@
   <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
   <link rel="icon" href="data:,">
   <style>
-    :root{
-      --bg:#000;
-      --crt:#00ff00;
-      --crt-dim:rgba(0,255,0,.55);
-      --ph:rgba(0,255,0,.55);        /* dimmer green placeholder */
-      --crt-soft: rgba(0,255,0,.18);
-      --fs:20px;
-      --ls:.08em; --lh:1.3;
-      --stage-offset:56px; --wrap-w:94vw; --max-w:1600px; --left-offset:1in;
-      --sep-title:24px; --between-q:18px; --row-gap:12px; --caret-gap:1ch; --btn-w:240px;
-    }
+  :root{
+    --bg:#000;
+    --crt:#00ff00;                 /* original bright green (kept for accents) */
+    --ink:#00c400;                 /* darker green for typed text */
+    --ph:rgba(0,255,0,.45);        /* dimmer green for placeholders */
+    --crt-dim:rgba(0,255,0,.55);
+    --crt-soft:rgba(0,255,0,.18);
+    --fs:20px;
+    --ls:.08em; --lh:1.3;
+    --stage-offset:56px; --wrap-w:94vw; --max-w:1600px; --left-offset:1in;
+    --sep-title:24px; --between-q:18px; --row-gap:12px; --caret-gap:1ch; --btn-w:240px;
+  }
+
+  /* apply the new colors */
+  .typed{ color: var(--ink); }
+  .typed.ph{ color: var(--ph); }
+</style>
     *{ box-sizing:border-box }
     html,body{
       height:100%; margin:0; background:var(--bg) !important; color:var(--crt);
