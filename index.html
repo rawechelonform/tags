@@ -12,9 +12,9 @@
       --bg:#000;
       --crt:#00ff00;
       --crt-dim:rgba(0,255,0,.55);
-      --ph:#7a6f4a;                 /* placeholder color: muted grey/brown */
+      --ph:rgba(0,255,0,.55);        /* dimmer green placeholder */
       --crt-soft: rgba(0,255,0,.18);
-      --fs:20px;                    /* base font (overridden by clamp below) */
+      --fs:20px;
       --ls:.08em; --lh:1.3;
       --stage-offset:56px; --wrap-w:94vw; --max-w:1600px; --left-offset:1in;
       --sep-title:24px; --between-q:18px; --row-gap:12px; --caret-gap:1ch; --btn-w:240px;
@@ -27,7 +27,7 @@
       line-height:calc(var(--lh)*1em);
     }
 
-    /* fluid base font so text scales desktop→mobile (can be overridden below) */
+    /* fluid base font so text scales desktop→mobile */
     :root{ --fs: clamp(14px, 1.8vw, 20px); }
 
     .wrap{
@@ -50,7 +50,7 @@
     .no-caret .caret{ display:none; }
 
     .typed{ min-height:calc(var(--lh)*1em); line-height:calc(var(--lh)*1em); white-space:pre-wrap; color:var(--crt); }
-    .typed.ph{ color:var(--ph); } /* dulled placeholder color */
+    .typed.ph{ color:var(--ph); } /* dimmer green placeholder */
 
     .cursor-block{ display:inline-block; width:1.1ch; height:1em; background:var(--crt); color:#000;
                    transform: translateY(calc((var(--lh) - 1) * 0.5em));
@@ -69,7 +69,6 @@
     .hid-input{ position:absolute; left:-9999px; width:1px; height:1px; opacity:0; border:0; outline:none; background:transparent; color:transparent; caret-color:transparent; text-transform:lowercase; }
     .hp{ position:absolute; left:-9999px; top:-9999px; }
 
-    /* just in case any visible input placeholders appear later */
     ::placeholder{ color:var(--ph); opacity:0.9; text-transform:uppercase; }
 
     /* Mobile tweaks */
@@ -77,11 +76,12 @@
       :root{
         --left-offset: 0px;
         --wrap-w: 100vw;
-        --fs: 16px;           /* comfortable phone size */
+        --fs: 16px;
         --caret-gap: 0.5ch;
         --stage-offset: 40px;
       }
-      .wrap{ padding-left:12px; padding-right:12px; }
+      /* add a little side margin on phones */
+      .wrap{ padding-left:16px; padding-right:16px; }
       .file-status{ white-space:normal; display:block; margin-left:0; margin-top:8px; }
       .line{ gap:0.5ch; align-items:center; }
     }
@@ -103,7 +103,7 @@
     <iframe name="upload_iframe" style="display:none"></iframe>
 
     <form id="tags_form"
-      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
+      action="https://script.google.com/macros/s/AKfycbxv3FKB0P30wixxKJUfYvTnCW9vzqgar4JV7PArIpirC9lk7Srpqe3SNDKIcCIvjs_4/exec"
       method="POST" enctype="multipart/form-data" target="upload_iframe" novalidate>
 
       <!-- UPLOAD -->
@@ -122,7 +122,7 @@
       <input type="hidden" name="sticker_type" id="sticker_type">
 
       <!-- anti-bot helpers -->
-      <input type="hidden" name="ttf_ms" id="ttf_ms"> <!-- time to fill, ms -->
+      <input type="hidden" name="ttf_ms" id="ttf_ms">
       <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" />
 
       <!-- PLACE OF TAG -->
@@ -163,7 +163,7 @@
   </div>
 
   <script>
-    /* ---------- caret-following renderer ---------- */
+    /* caret-following renderer */
     function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>c==='&'?'&amp;':c==='<'?'&lt;':c==='>'?'&gt;':c==='"'?'&quot;':'&#39;');}
     function bindTermField(field){
       var line=document.querySelector('.line[data-field="'+field+'"]'); if(!line)return;
@@ -189,14 +189,14 @@
     }
     ['title','city','country'].forEach(bindTermField);
 
-    /* ---------- upload + base64 fallback + silent 500KB optimizer ---------- */
+    /* upload + base64 fallback + silent 500KB optimizer */
     var form=document.getElementById('tags_form'), btn=document.getElementById('submitBtn'), statusEl=document.getElementById('status');
     var fileInput=document.getElementById('sticker'), fileStatus=document.getElementById('fileStatus');
     var b64El=document.getElementById('sticker_b64'), nameEl=document.getElementById('sticker_name'), typeEl=document.getElementById('sticker_type');
     var ttfEl=document.getElementById('ttf_ms'), t0=Date.now();
 
-    var CAP_BYTES=500*1024;         // keep in sync with server
-    var MAX_READ_BYTES=25*1024*1024;// hard stop to avoid absurdly large files in browser
+    var CAP_BYTES=500*1024;
+    var MAX_READ_BYTES=25*1024*1024;
     var uploadTimer=null;
 
     function setStatus(m){ statusEl.textContent=m; }
@@ -215,16 +215,13 @@
     function loadImage(src){ return new Promise(function(resolve,reject){ var img=new Image(); img.onload=function(){resolve(img)}; img.onerror=reject; img.src=src; }); }
 
     async function optimizeToCap(file){
-      // if already small JPEG, just pass through
       if (file.type==='image/jpeg' && file.size<=CAP_BYTES){
         var pass = await readFileToDataURL(file);
         return { dataUrl: pass, name: file.name || 'upload.jpg', type: 'image/jpeg' };
       }
-      // otherwise: convert/draw to canvas, JPEG with downscale and quality steps
       var dataUrl = await readFileToDataURL(file);
       var img = await loadImage(dataUrl);
 
-      // Scale down if overly large (cap long edge to ~2000px)
       var MAX_DIM = 2000;
       var scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
       var cw = Math.max(1, Math.round(img.width*scale));
@@ -232,15 +229,12 @@
 
       var canvas=document.createElement('canvas'); canvas.width=cw; canvas.height=ch;
       var ctx=canvas.getContext('2d');
-
-      // fill black to eliminate any transparent pixels (PNG) cleanly
       ctx.fillStyle='#000'; ctx.fillRect(0,0,cw,ch);
       ctx.drawImage(img,0,0,cw,ch);
 
       var quality=0.9, out, estBytes=Infinity;
       while (quality>=0.4){
         out = canvas.toDataURL('image/jpeg', quality);
-        // estimate payload size from base64 length
         estBytes = Math.ceil((out.length - 'data:image/jpeg;base64,'.length)*3/4);
         if (estBytes <= CAP_BYTES) break;
         quality -= 0.1;
@@ -251,14 +245,13 @@
 
     var prepping=false;
     form.addEventListener('submit', async function(e){
-      ttfEl.value = String(Math.max(0, Date.now()-t0)); // ms since page opened
+      ttfEl.value = String(Math.max(0, Date.now()-t0));
       var f=fileInput.files&&fileInput.files[0];
       if(!f){ e.preventDefault(); setStatus('no image uploaded.'); return; }
       if(!['image/jpeg','image/png'].includes(f.type)){ e.preventDefault(); setStatus('png/jpeg only'); return; }
       var hp=document.querySelector('input[name="website"]'); if(hp&&hp.value){ e.preventDefault(); setStatus('spam blocked.'); return; }
       if(f.size>MAX_READ_BYTES){ e.preventDefault(); setStatus('file too large to process in browser'); return; }
 
-      // prepare base64 (optimize silently if needed)
       if(!b64El.value && !prepping){
         e.preventDefault(); prepping=true; btn.disabled=true; setStatus('prepping upload...');
         try{
@@ -281,7 +274,6 @@
       }
     });
 
-    // receive postMessage from the Apps Script iframe
     window.addEventListener('message',function(e){
       var okOrigin=/^https:\/\/script\.google\.com$/.test(e.origin)||/^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
       if(!okOrigin) return;
