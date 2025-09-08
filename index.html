@@ -8,23 +8,18 @@
   <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
   <link rel="icon" href="data:,">
   <style>
-  :root{
-    --bg:#000;
-    --crt:#00ff00;                 /* original bright green (kept for accents) */
-    --ink:#00c400;                 /* darker green for typed text */
-    --ph:rgba(0,255,0,.45);        /* dimmer green for placeholders */
-    --crt-dim:rgba(0,255,0,.55);
-    --crt-soft:rgba(0,255,0,.18);
-    --fs:20px;
-    --ls:.08em; --lh:1.3;
-    --stage-offset:56px; --wrap-w:94vw; --max-w:1600px; --left-offset:1in;
-    --sep-title:24px; --between-q:18px; --row-gap:12px; --caret-gap:1ch; --btn-w:240px;
-  }
-
-  /* apply the new colors */
-  .typed{ color: var(--ink); }
-  .typed.ph{ color: var(--ph); }
-</style>
+    :root{
+      --bg:#000;
+      --crt:#00ff00;                /* bright green accents (borders, cursor, etc.) */
+      --ink:#00c400;                /* darker green for typed text */
+      --ph:rgba(0,255,0,.45);       /* dimmer green for placeholders */
+      --crt-dim:rgba(0,255,0,.55);  /* muted accent for helper/status */
+      --crt-soft:rgba(0,255,0,.18);
+      --fs:20px;
+      --ls:.08em; --lh:1.3;
+      --stage-offset:56px; --wrap-w:94vw; --max-w:1600px; --left-offset:1in;
+      --sep-title:24px; --between-q:18px; --row-gap:12px; --caret-gap:1ch; --btn-w:240px;
+    }
     *{ box-sizing:border-box }
     html,body{
       height:100%; margin:0; background:var(--bg) !important; color:var(--crt);
@@ -33,7 +28,7 @@
       line-height:calc(var(--lh)*1em);
     }
 
-    /* fluid base font so text scales desktop→mobile */
+    /* Fluid base font so text scales desktop→mobile */
     :root{ --fs: clamp(14px, 1.8vw, 20px); }
 
     .wrap{
@@ -55,8 +50,8 @@
     .line{ display:flex; align-items:baseline; gap:var(--caret-gap); margin-top:var(--row-gap); }
     .no-caret .caret{ display:none; }
 
-    .typed{ min-height:calc(var(--lh)*1em); line-height:calc(var(--lh)*1em); white-space:pre-wrap; color:var(--crt); }
-    .typed.ph{ color:var(--ph); } /* dimmer green placeholder */
+    .typed{ min-height:calc(var(--lh)*1em); line-height:calc(var(--lh)*1em); white-space:pre-wrap; color:var(--ink); }
+    .typed.ph{ color:var(--ph); }  /* dimmer placeholder */
 
     .cursor-block{ display:inline-block; width:1.1ch; height:1em; background:var(--crt); color:#000;
                    transform: translateY(calc((var(--lh) - 1) * 0.5em));
@@ -82,12 +77,12 @@
       :root{
         --left-offset: 0px;
         --wrap-w: 100vw;
-        --fs: 16px;
+        --fs: 16px;         /* comfy phone size */
         --caret-gap: 0.5ch;
         --stage-offset: 40px;
       }
-      /* add a little side margin on phones */
-      .wrap{ padding-left:25px; padding-right:25px; }
+      /* add a small side margin on phones */
+      .wrap{ padding-left:16px; padding-right:16px; }
       .file-status{ white-space:normal; display:block; margin-left:0; margin-top:8px; }
       .line{ gap:0.5ch; align-items:center; }
     }
@@ -201,8 +196,8 @@
     var b64El=document.getElementById('sticker_b64'), nameEl=document.getElementById('sticker_name'), typeEl=document.getElementById('sticker_type');
     var ttfEl=document.getElementById('ttf_ms'), t0=Date.now();
 
-    var CAP_BYTES=500*1024;
-    var MAX_READ_BYTES=25*1024*1024;
+    var CAP_BYTES=500*1024;          // must match server
+    var MAX_READ_BYTES=25*1024*1024; // safety: don’t try to process absurdly large files in browser
     var uploadTimer=null;
 
     function setStatus(m){ statusEl.textContent=m; }
@@ -221,21 +216,23 @@
     function loadImage(src){ return new Promise(function(resolve,reject){ var img=new Image(); img.onload=function(){resolve(img)}; img.onerror=reject; img.src=src; }); }
 
     async function optimizeToCap(file){
+      // pass-through if already small JPEG
       if (file.type==='image/jpeg' && file.size<=CAP_BYTES){
         var pass = await readFileToDataURL(file);
         return { dataUrl: pass, name: file.name || 'upload.jpg', type: 'image/jpeg' };
       }
+      // convert/draw to canvas → JPEG under cap
       var dataUrl = await readFileToDataURL(file);
       var img = await loadImage(dataUrl);
 
-      var MAX_DIM = 2000;
+      var MAX_DIM = 2000; // cap long edge for giant photos
       var scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
       var cw = Math.max(1, Math.round(img.width*scale));
       var ch = Math.max(1, Math.round(img.height*scale));
 
       var canvas=document.createElement('canvas'); canvas.width=cw; canvas.height=ch;
       var ctx=canvas.getContext('2d');
-      ctx.fillStyle='#000'; ctx.fillRect(0,0,cw,ch);
+      ctx.fillStyle='#000'; ctx.fillRect(0,0,cw,ch); // replace transparency with black
       ctx.drawImage(img,0,0,cw,ch);
 
       var quality=0.9, out, estBytes=Infinity;
@@ -280,6 +277,7 @@
       }
     });
 
+    // receive postMessage from the Apps Script iframe
     window.addEventListener('message',function(e){
       var okOrigin=/^https:\/\/script\.google\.com$/.test(e.origin)||/^https:\/\/([a-z0-9-]+\.)*googleusercontent\.com$/.test(e.origin);
       if(!okOrigin) return;
